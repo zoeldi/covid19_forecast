@@ -16,6 +16,7 @@ colorblind = list('grey' =   '#999999',
 # path
 dir_root = getwd()
 dir_data = paste0(dir_root, '\\data')
+dir_code = paste0(dir_root, '\\code')
 
 # libs
 if (!require("pacman")) install.packages("pacman")
@@ -30,5 +31,3 @@ pacman::p_load(tidyverse,
                modeltime,
                modeltime.ensemble)
 
-# load data
-dat1 = read_feather(paste0(dir_data, '\\dat_raw_3ho.feather'))
