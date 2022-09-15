@@ -23,25 +23,6 @@ recipe_o2 =
          data = extract_nested_train_split(dat_o2)) %>%
   # creates ts features from date column
   step_timeseries_signature(migdate) %>%
-  # removes dat column
-  step_rm(migdate) %>%
-  # removes constant columns
-  step_zv(all_predictors()) %>%
-  step_rm(contains("iso"), 
-          contains("second"), contains("minute"), contains("hour"),
-          contains("am.pm"), contains("xts"), contains('day'), 
-          contains('week')) %>% 
-  # one-hot dummy encoding
-  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>% 
-  step_diff(freq)
-
-recipe_i2 =
-  recipe(freq ~ .,
-         data = extract_nested_train_split(dat_i2)) %>%
-  # creates ts features from date column
-  step_timeseries_signature(migdate) %>%
-  # removes dat column
-  step_rm(migdate) %>%
   # removes constant columns
   step_zv(all_predictors()) %>%
   step_rm(contains("iso"), 
@@ -50,6 +31,20 @@ recipe_i2 =
           contains('week')) %>% 
   # one-hot dummy encoding
   step_dummy(all_nominal_predictors(), one_hot = TRUE)
+
+recipe_i2 =
+  recipe(freq ~ .,
+         data = extract_nested_train_split(dat_i2)) %>%
+  # creates ts features from date column
+  step_timeseries_signature(migdate) %>%
+  # removes constant columns
+  step_zv(all_predictors()) %>%
+  step_rm(contains("iso"), 
+          contains("second"), contains("minute"), contains("hour"),
+          contains("am.pm"), contains("xts"), contains('day'), 
+          contains('week')) %>% 
+  # one-hot dummy encoding
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) 
 
 # Recipe for machine learning models (ts signature, fourier series K=1)
 recipe_o3 =
@@ -115,38 +110,60 @@ recipe_i4 =
           contains('week')) %>% 
   step_dummy(all_nominal_predictors(), one_hot = TRUE)
 
-bake(prep(recipe_o2), new_data = extract_nested_train_split(dat_o2))
+#bake(prep(recipe_o2), new_data = extract_nested_train_split(dat_o2))
 
 
 # Models ------------------------------------------------------------------
 
-# PROPHET without external regressors
+# ARIMA
+mod_arima = 
+  arima_reg(mode = 'regression') %>% 
+  set_engine('auto_arima')
+
+# Prophet
 mod_prophet = 
-  prophet_reg('regression',
-              seasonality_yearly = TRUE) %>% 
+  prophet_reg(mode = 'regression',
+              seasonality_yearly = T) %>% 
   set_engine('prophet')
 
 # XGBOOST tuned with grid search
 mod_xgb = 
-  tibble(expand_grid(tree_depth = c(#4,
-                                    #5,
-                                    6),
-                     learn_rate = c(#0.001,
-                                    #0.050,
-                                    #0.100,
-                                    0.300,
-                                    0.650),
-                     trees = c(#15,
-                               #20,
-                               25)
+  tibble(expand_grid(tree_depth = c(3:10),
+                     learn_rate = c(0.001,
+                                    0.010,
+                                    0.025,
+                                    0.050,
+                                    0.100,
+                                    0.125,
+                                    0.150,
+                                    0.175,
+                                    0.200,
+                                    0.300),
+                     sample_size = c(0.5,
+                                     1),
+                     trees = c(10, 
+                               20, 
+                               30),
+                     stop_iter = c(3)
+                     
                      )) %>% 
-  create_model_grid(f_model_spec = boost_tree,
-                    engine_name = 'xgboost',
+  create_model_grid(f_model_spec = arima_boost,
+                    engine_name = 'auto_arima_xgboost',
                     mode = 'regression')
 mod_xgb = mod_xgb$.models
 
 
 # Workflows ---------------------------------------------------------------
+
+wflw_arima_o1 =
+  workflow() %>% 
+  add_model(mod_arima) %>% 
+  add_recipe(recipe_o1)
+
+wflw_arima_i1 =
+  workflow() %>% 
+  add_model(mod_arima) %>% 
+  add_recipe(recipe_i1)
 
 wflw_prophet_o1 =
   workflow() %>% 
@@ -181,44 +198,50 @@ parallel_start(num_cores)
 
 dat_o3 = 
   modeltime_nested_fit(nested_data = dat_o2,
-                       model_list = append(wflw_xgb_o1, list(wflw_prophet_o1)),
+                       model_list = append(wflw_xgb_o1, 
+                                           c(list(wflw_arima_o1),
+                                           list(wflw_prophet_o1))),
                        control = control_nested_fit(allow_par = TRUE,
                                                     cores = as.numeric(num_cores),
                                                     verbose = TRUE))
 
+dat_i3 = 
+  modeltime_nested_fit(nested_data = dat_i2,
+                       model_list = append(wflw_xgb_i1, 
+                                           c(list(wflw_arima_i1),
+                                             list(wflw_prophet_i1))),
+                       control = control_nested_fit(allow_par = TRUE,
+                                                    cores = as.numeric(num_cores),
+                                                    verbose = TRUE))
 parallel_stop()
 
-dat_o4 <- dat_o3 %>%
-  modeltime_nested_select_best(
-    metric                = "rmse", 
-    minimize              = TRUE, 
-    filter_test_forecasts = TRUE)
+dat_o4 =
+  dat_o3 %>%
+  modeltime_nested_select_best(metric = "mae",
+                               minimize = TRUE, 
+                               filter_test_forecasts = TRUE)
+dat_i4 =
+  dat_i3 %>%
+  modeltime_nested_select_best(metric = "mae",
+                               minimize = TRUE, 
+                               filter_test_forecasts = TRUE)
 
-dat_o5 <- dat_o4 %>%
-  modeltime_nested_refit(
-    control = control_nested_refit(verbose = TRUE)
-  )
+dat_o5 = 
+  dat_o4 %>%
+  modeltime_nested_refit(control = control_nested_refit(verbose = TRUE))
+dat_i5 = 
+  dat_i4 %>%
+  modeltime_nested_refit(control = control_nested_refit(verbose = TRUE))
 
 dat_o5 %>%
   extract_nested_future_forecast() %>%
   group_by(ts_id) %>%
-  plot_modeltime_forecast(
-    .interactive = FALSE,
-    .facet_ncol  = 5,
-    .conf_interval_show = F
-  )
-
-dat_o5 %>% 
-  modeltime_nested_forecast(
-    h = 24,
-    include_actual = TRUE,
-    conf_interval = 0.95,
-    id_subset = NULL,
-    control = control_nested_forecast(verbose = T)
-  ) %>% 
+  plot_modeltime_forecast(.interactive = FALSE,
+                          .facet_ncol  = 5,
+                          .conf_interval_show = T)
+dat_i5 %>%
+  extract_nested_future_forecast() %>%
   group_by(ts_id) %>%
-  plot_modeltime_forecast(
-    .interactive = FALSE,
-    .facet_ncol  = 5,
-    .conf_interval_show = F
-  )
+  plot_modeltime_forecast(.interactive = FALSE,
+                          .facet_ncol  = 5,
+                          .conf_interval_show = T)

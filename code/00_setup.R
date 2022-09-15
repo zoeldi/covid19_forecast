@@ -17,7 +17,6 @@ colorblind = list('grey' =   '#999999',
 dir_root = getwd()
 dir_data = paste0(dir_root, '\\data')
 dir_code = paste0(dir_root, '\\code')
-
 # libs
 if (!require("pacman")) install.packages("pacman")
 

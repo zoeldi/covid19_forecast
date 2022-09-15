@@ -1,4 +1,4 @@
-
+future_len = 36
 
 # Load data ---------------------------------------------------------------
 
@@ -72,9 +72,9 @@ dat_o2 =
   # forecast 24 month (2020, 2021)
   extend_timeseries(.id_var = ts_id,
                     .date_var = migdate,
-                    .length_future = 24) %>% 
+                    .length_future = future_len) %>% 
   nest_timeseries(.id_var = ts_id,
-                  .length_future = 24,
+                  .length_future = future_len,
                   .length_actual = 108) %>% 
   # train test split
   split_nested_timeseries(.length_test = 12)
@@ -123,9 +123,9 @@ dat_i2 =
   # forecast 24 month (2020, 2021)
   extend_timeseries(.id_var = ts_id,
                     .date_var = migdate,
-                    .length_future = 24) %>% 
+                    .length_future = future_len) %>% 
   nest_timeseries(.id_var = ts_id,
-                  .length_future = 24,
+                  .length_future = future_len,
                   .length_actual = 108) %>% 
   # train test split
   split_nested_timeseries(.length_test = 12)
