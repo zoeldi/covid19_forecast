@@ -120,33 +120,42 @@ mod_arima =
   arima_reg(mode = 'regression') %>% 
   set_engine('auto_arima')
 
-# Prophet
+# PROPHET
 mod_prophet = 
   prophet_reg(mode = 'regression',
               seasonality_yearly = T) %>% 
   set_engine('prophet')
 
-# XGBOOST tuned with grid search
+# ARIMA-BOOST
 mod_xgb = 
-  tibble(expand_grid(tree_depth = c(3:10),
-                     learn_rate = c(0.001,
-                                    0.010,
-                                    0.025,
-                                    0.050,
-                                    0.100,
-                                    0.125,
-                                    0.150,
-                                    0.175,
-                                    0.200,
-                                    0.300),
-                     sample_size = c(0.5,
-                                     1),
-                     trees = c(10, 
-                               20, 
-                               30),
-                     stop_iter = c(3)
-                     
-                     )) %>% 
+  tibble(expand_grid(
+    tree_depth = c(
+      3,
+      6,
+      10
+    ),
+    learn_rate = c(
+      0.010,
+      0.025,
+      0.050,
+      0.100,
+      0.125,
+      0.150,
+      0.175,
+      0.200,
+      0.300
+    ),
+    sample_size = c(
+      0.5
+    ),
+    trees = c(
+      10, 
+      20, 
+      30
+    ),
+    stop_iter = c(3)
+    )
+  ) %>% 
   create_model_grid(f_model_spec = arima_boost,
                     engine_name = 'auto_arima_xgboost',
                     mode = 'regression')
@@ -222,7 +231,7 @@ dat_o4 =
                                filter_test_forecasts = TRUE)
 dat_i4 =
   dat_i3 %>%
-  modeltime_nested_select_best(metric = "mae",
+  modeltime_nested_select_best(metric = "mase",
                                minimize = TRUE, 
                                filter_test_forecasts = TRUE)
 
@@ -245,3 +254,13 @@ dat_i5 %>%
   plot_modeltime_forecast(.interactive = FALSE,
                           .facet_ncol  = 5,
                           .conf_interval_show = T)
+
+
+saveRDS(dat_o3, paste0(dir_data, '\\dat_o3.RData'))
+saveRDS(dat_o4, paste0(dir_data, '\\dat_o4.RData'))
+saveRDS(dat_o5, paste0(dir_data, '\\dat_o5.RData'))
+
+
+saveRDS(dat_i3, paste0(dir_data, '\\dat_i3.RData'))
+saveRDS(dat_i4, paste0(dir_data, '\\dat_i4.RData'))
+saveRDS(dat_i5, paste0(dir_data, '\\dat_i5.RData'))
