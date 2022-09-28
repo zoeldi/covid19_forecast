@@ -17,6 +17,8 @@ colorblind = list('grey' =   '#999999',
 dir_root = getwd()
 dir_data = paste0(dir_root, '\\data')
 dir_code = paste0(dir_root, '\\code')
+dir_out = paste0(dir_root, '\\out')
+
 # libs
 if (!require("pacman")) install.packages("pacman")
 
@@ -28,5 +30,6 @@ pacman::p_load(tidyverse,
                fabletools,
                feather,
                modeltime,
-               modeltime.ensemble)
+               modeltime.ensemble,
+               ggpubr)
 

@@ -122,65 +122,46 @@ mod_arima =
 
 # PROPHET
 mod_prophet = 
-  tibble(
-    expand_grid(
-      growth = c('linear'),
-      changepoint_num = c(2, 3, 5, 10, 25),
-      changepoint_range = c(0.8, 0.9),
-      seasonality_yearly = TRUE,
-      seasonality_weekly = FALSE,
-      seasonality_daily = FALSE,
-      season = c('additive'),
-      prior_scale_changepoints = c(0.05, 0.1, 1, 10, 20),
-      prior_scale_seasonality = c(5, 10, 15)
-    )
-  ) %>% 
-  create_model_grid(f_model_spec = prophet_reg,
-                    engine_name = 'prophet',
-                    mode = 'regression')
-mod_prophet = mod_prophet$.models
-
-# EXPSMOOTH
-mod_expsmooth = 
-  exp_smoothing() %>% 
-  set_engine('ets')
+  prophet_reg(mode = 'regression',
+              seasonality_yearly = T) %>% 
+  set_engine('prophet')
 
 # ARIMA-BOOST
-mod_arimaxgb = 
-  tibble(
-    expand_grid(
-      tree_depth = c(4, 6, 8),
-      learn_rate = c(0.010, 0.025, 0.050, 0.100, 0.125),
-      stop_iter = c(3)
+mod_xgb = 
+  tibble(expand_grid(
+    tree_depth = c(
+      4,
+      6,
+      8
+    ),
+    learn_rate = c(
+      0.010,
+      0.025,
+      0.050,
+      0.100,
+      0.125,
+      0.150,
+      0.175,
+      0.200
+    ),
+    sample_size = c(
+      0.5,
+      1
+    ),
+    trees = c(
+      6,
+      8,
+      10,
+      15
+    ),
+    stop_iter = c(3)
     )
   ) %>% 
   create_model_grid(f_model_spec = arima_boost,
                     engine_name = 'auto_arima_xgboost',
                     mode = 'regression')
-mod_arimaxgb = mod_arimaxgb$.models
+mod_xgb = mod_xgb$.models
 
-# PROPHET-BOOST
-mod_prophetxgb = 
-  tibble(
-    expand_grid(
-      growth = c('linear'),
-      changepoint_num = c(3, 5, 10, 25),
-      changepoint_range = c(0.9),
-      seasonality_yearly = TRUE,
-      seasonality_weekly = FALSE,
-      seasonality_daily = FALSE,
-      season = c('additive'),
-      prior_scale_changepoints = c(0.05, 0.1, 1, 10, 20),
-      prior_scale_seasonality = c(5, 10, 15),
-      tree_depth = c(4, 6, 8),
-      learn_rate = c(0.010, 0.025, 0.050, 0.100, 0.125),
-      stop_iter = c(3)
-    )
-  ) %>% 
-  create_model_grid(f_model_spec = prophet_boost,
-                    engine_name = 'prophet_xgboost',
-                    mode = 'regression')
-mod_prophetxgb = mod_prophetxgb$.models
 
 # Workflows ---------------------------------------------------------------
 
@@ -195,52 +176,28 @@ wflw_arima_i1 =
   add_recipe(recipe_i1)
 
 # PROPHET
-wflw_prophet_i1 =
-  workflow_set(preproc = list(recipe_i1),
-               models = mod_prophet,
-               cross = TRUE)
-wflw_prophet_i1 =  sapply(wflw_prophet_i1[[2]], function(i) i[[1]])
 wflw_prophet_o1 =
-  workflow_set(preproc = list(recipe_o1),
-               models = mod_prophet,
-               cross = TRUE)
-wflw_prophet_o1 =  sapply(wflw_prophet_o1[[2]], function(i) i[[1]])
-
-# EXPSMOOTH
-wflw_ets_i1 = 
   workflow() %>% 
-  add_model(mod_expsmooth) %>% 
-  add_recipe(recipe_i1)
-wflw_ets_o1 = 
-  workflow() %>% 
-  add_model(mod_expsmooth) %>% 
+  add_model(mod_prophet) %>% 
   add_recipe(recipe_o1)
+wflw_prophet_i1 = 
+  workflow() %>% 
+  add_model(mod_prophet) %>% 
+  add_recipe(recipe_i1)
 
 # ATIMA-BOOST
-wflw_arimaxgb_o1 =
+wflw_xgb_o1 =
   workflow_set(preproc = list(recipe_o2),
-               models = mod_arimaxgb,
+               models = mod_xgb,
                cross = TRUE)
-wflw_arimaxgb_o1 =  sapply(wflw_arimaxgb_o1[[2]], function(i) i[[1]])
-wflw_arimaxgb_i1 =
+wflw_xgb_o1 =  sapply(wflw_xgb_o1[[2]], function(i) i[[1]])
+wflw_xgb_i1 =
   workflow_set(preproc = list(recipe_i2),
-               models = mod_arimaxgb,
+               models = mod_xgb,
                cross = TRUE)
 
-wflw_arimaxgb_i1 =  sapply(wflw_arimaxgb_i1[[2]], function(i) i[[1]])
+wflw_xgb_i1 =  sapply(wflw_xgb_i1[[2]], function(i) i[[1]])
 
-# PROPHET-BOOST
-wflw_prophetxgb_o1 =
-  workflow_set(preproc = list(recipe_o2),
-               models = mod_prophetxgb,
-               cross = TRUE)
-wflw_prophetxgb_o1 =  sapply(wflw_prophetxgb_o1[[2]], function(i) i[[1]])
-wflw_prophetxgb_i1 =
-  workflow_set(preproc = list(recipe_i2),
-               models = mod_prophetxgb,
-               cross = TRUE)
-
-wflw_prophetxgb_i1 =  sapply(wflw_prophetxgb_i1[[2]], function(i) i[[1]])
 
 # Inflow  -----------------------------------------------------------------
 
@@ -253,12 +210,9 @@ parallel_start(num_cores)
 # Fit
 dat_i3 = 
   modeltime_nested_fit(nested_data = dat_i2,
-                       model_list = 
-                         list(wflw_arima_i1, 
-                              wflw_ets_i1) %>% 
-                         append(wflw_arimaxgb_i1) %>% 
-                         append(wflw_prophet_i1) %>% 
-                         append(wflw_prophetxgb_i1),
+                       model_list = append(wflw_xgb_i1, 
+                                           c(list(wflw_arima_i1),
+                                             list(wflw_prophet_i1))),
                        control = control_nested_fit(allow_par = TRUE,
                                                     cores = as.numeric(num_cores),
                                                     verbose = TRUE))
@@ -272,7 +226,6 @@ dat_i4 =
   modeltime_nested_select_best(metric = "mae",
                                minimize = TRUE, 
                                filter_test_forecasts = TRUE)
-
 
 # Refit 
 dat_i5 = 
@@ -311,12 +264,9 @@ parallel_start(num_cores)
 # Fit outflow
 dat_o3 = 
   modeltime_nested_fit(nested_data = dat_o2,
-                       model_list = 
-                         list(wflw_arima_o1, 
-                              wflw_ets_o1) %>% 
-                         append(wflw_arimaxgb_o1) %>% 
-                         append(wflw_prophet_o1) %>% 
-                         append(wflw_prophetxgb_o1),
+                       model_list = append(wflw_xgb_o1, 
+                                           c(list(wflw_arima_o1),
+                                             list(wflw_prophet_o1))),
                        control = control_nested_fit(allow_par = TRUE,
                                                     cores = as.numeric(num_cores),
                                                     verbose = TRUE))

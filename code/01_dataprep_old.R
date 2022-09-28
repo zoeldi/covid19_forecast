@@ -46,10 +46,17 @@ dat_o =
   # fill in dates where no event happened by 1
   pad_by_time(.date_var = migdate,
               .by = 'month',
-              .pad_value = 0,
+              .pad_value = 1,
               .start_date = '2010-01-01') %>% 
   # value becomes the log of averages daily events in a month
-  mutate( freq = log( (freq+1) / days_in_month(migdate) ) ) %>% 
+  mutate(freq = log(freq / days_in_month(migdate))) %>% 
+  # transform to tsibble
+  as_tsibble(key = c(agegrp, 
+                     hostgrp),
+             index = migdate) %>%
+  # create aggregates by each level
+  aggregate_key(agegrp * hostgrp, 
+                freq = log(sum(exp(freq)))) %>% 
   # create ts identifier
   group_by(agegrp, hostgrp) %>% 
   mutate(ts_id = cur_group_id()) %>% 
@@ -58,6 +65,7 @@ dat_o =
 # nested ts object
 dat_o2 = 
   dat_o %>%
+  as_tibble() %>% 
   # before 2011 too much noise, afer 2019 covid test
   filter(migdate >= ymd('2011-01-01') & migdate <= ymd('2019-12-01')) %>% 
   select(-agegrp, -hostgrp) %>% 
@@ -89,10 +97,17 @@ dat_i =
   # fill in dates where no event happened by 1
   pad_by_time(.date_var = migdate,
               .by = 'month',
-              .pad_value = 0,
+              .pad_value = 1,
               .start_date = '2010-01-01') %>% 
   # value becomes the log of averages daily events in a month
-  mutate( freq = log( (freq+1) / days_in_month(migdate) ) ) %>% 
+  mutate(freq = log(freq / days_in_month(migdate))) %>% 
+  # transform to tsibble
+  as_tsibble(key = c(agegrp, 
+                     hostgrp),
+             index = migdate) %>%
+  # create aggregates by each level
+  aggregate_key(agegrp * hostgrp, 
+                freq = log(sum(exp(freq)))) %>% 
   # create ts identifier
   group_by(agegrp, hostgrp) %>% 
   mutate(ts_id = cur_group_id()) %>% 
