@@ -91,6 +91,11 @@ mod_prophet_xgb =
                     engine_name = 'prophet_xgboost',
                     mode = 'regression'); mod_prophet_xgb = mod_prophet_xgb$.models
 
+# TBATS
+mod_tbats = 
+  seasonal_reg() %>% 
+  set_engine('tbats')
+
 # Workflow ------------------------------------------------------------------------------------
 
 # PROPHET
@@ -128,6 +133,13 @@ wflw_prophet_xgb =
 wflw_prophet_xgb =  sapply(wflw_prophet_xgb
                            [[2]], function(i) i[[1]])
 
+# TBATS
+wflw_tbats = 
+  workflow() %>% 
+  add_model(mod_tbats) %>% 
+  add_recipe(recipe1)
+
+
 # Fit -----------------------------------------------------------------------------------------
 
 # Set num of cores used to fitting
@@ -139,8 +151,9 @@ parallel_start(num_cores)
 dat5 = 
   modeltime_nested_fit(nested_data = dat4,
                        model_list = 
-                         list(wflw_arima) %>%
-                         append(wflw_prophet_xgb) %>% 
+                         list(wflw_arima,
+                              wflw_tbats) %>%
+                         #append(wflw_prophet_xgb) %>% 
                          append(wflw_prophet),
                        control = control_nested_fit(allow_par = TRUE,
                                                     cores = as.numeric(num_cores),
