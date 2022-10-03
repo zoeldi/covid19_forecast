@@ -1,26 +1,19 @@
 
 
-# Load data ---------------------------------------------------------------
+# Load ----------------------------------------------------------------------------------------
 
-dat_o2 = readRDS(paste0(dir_data, '\\dat_o2.RData'))
-dat_i2 = readRDS(paste0(dir_data, '\\dat_i2.RData'))
+dat4 = readRDS(paste0(dir_data, '\\dat4.RDS'))
 
 
-# Feature engine ----------------------------------------------------------
+# Recipe --------------------------------------------------------------------------------------
 
-# Recipe for statistical models (only time column)
-recipe_o1 = 
-  recipe(freq ~ migdate, 
-         data = extract_nested_train_split(dat_o2))
+recipe1 = 
+  recipe(freqlog ~ migdate, 
+         data = extract_nested_train_split(dat4))
 
-recipe_i1 = 
-  recipe(freq ~ migdate, 
-         data = extract_nested_train_split(dat_i2))
-
-# Recipe for machine learning models (ts signaure, base)
-recipe_o2 =
-  recipe(freq ~ .,
-         data = extract_nested_train_split(dat_o2)) %>%
+recipe2 =
+  recipe(freqlog ~ .,
+         data = extract_nested_train_split(dat4)) %>%
   # creates ts features from date column
   step_timeseries_signature(migdate) %>%
   # removes constant columns
@@ -29,220 +22,113 @@ recipe_o2 =
           contains("second"), contains("minute"), contains("hour"),
           contains("am.pm"), contains("xts"), contains('day'), 
           contains('week')) %>% 
+  step_rm(freq0, freqbc, freq, freqdiff) %>% 
   # one-hot dummy encoding
   step_dummy(all_nominal_predictors(), one_hot = TRUE)
 
-recipe_i2 =
-  recipe(freq ~ .,
-         data = extract_nested_train_split(dat_i2)) %>%
-  # creates ts features from date column
-  step_timeseries_signature(migdate) %>%
-  # removes constant columns
-  step_zv(all_predictors()) %>%
-  step_rm(contains("iso"), 
-          contains("second"), contains("minute"), contains("hour"),
-          contains("am.pm"), contains("xts"), contains('day'), 
-          contains('week')) %>% 
-  # one-hot dummy encoding
-  step_dummy(all_nominal_predictors(), one_hot = TRUE) 
-
-# Recipe for machine learning models (ts signature, fourier series K=1)
-recipe_o3 =
-  recipe(freq ~ .,
-         data = extract_nested_train_split(dat_o2)) %>% 
-  step_timeseries_signature(migdate) %>%
-  # Creates fseries where K = 1
-  step_fourier(migdate, 
-               period = c(12/4), 
-               K = 1) %>% 
-  step_rm(migdate) %>%
-  step_zv(all_predictors()) %>%
-  step_rm(contains("iso"), 
-          contains("second"), contains("minute"), contains("hour"),
-          contains("am.pm"), contains("xts"), contains('day'), 
-          contains('week')) %>% 
-  step_dummy(all_nominal_predictors(), one_hot = TRUE)
-
-recipe_i3 =
-  recipe(freq ~ .,
-         data = extract_nested_train_split(dat_i2)) %>% 
-  step_timeseries_signature(migdate) %>%
-  # Creates fseries where K = 1
-  step_fourier(migdate, 
-               period = c(12/4), 
-               K = 1) %>% 
-  step_rm(migdate) %>%
-  step_zv(all_predictors()) %>%
-  step_rm(contains("iso"), 
-          contains("second"), contains("minute"), contains("hour"),
-          contains("am.pm"), contains("xts"), contains('day'), 
-          contains('week')) %>% 
-  step_dummy(all_nominal_predictors(), one_hot = TRUE)
-
-# Recipe for machine learning models (ts signature, fourier series K=2)
-recipe_o4 =
-  recipe(freq ~ .,
-         data = extract_nested_train_split(dat_o2)) %>% 
-  step_timeseries_signature(migdate) %>%
-  step_fourier(migdate, 
-               period = c(12/4), 
-               K = 2) %>% 
-  step_rm(migdate) %>%
-  step_zv(all_predictors()) %>%
-  step_rm(contains("iso"), 
-          contains("second"), contains("minute"), contains("hour"),
-          contains("am.pm"), contains("xts"), contains('day'), 
-          contains('week')) %>% 
-  step_dummy(all_nominal_predictors(), one_hot = TRUE) 
-
-recipe_i4 =
-  recipe(freq ~ .,
-         data = extract_nested_train_split(dat_i2)) %>% 
-  step_timeseries_signature(migdate) %>%
-  step_fourier(migdate, 
-               period = c(12/4), 
-               K = 2) %>% 
-  step_rm(migdate) %>%
-  step_zv(all_predictors()) %>%
-  step_rm(contains("iso"), 
-          contains("second"), contains("minute"), contains("hour"),
-          contains("am.pm"), contains("xts"), contains('day'), 
-          contains('week')) %>% 
-  step_dummy(all_nominal_predictors(), one_hot = TRUE)
-
-#bake(prep(recipe_o2), new_data = extract_nested_train_split(dat_o2))
-
-
-# Models ------------------------------------------------------------------
-
-# ARIMA
-mod_arima = 
-  arima_reg(mode = 'regression') %>% 
-  set_engine('auto_arima')
+bake(prep(recipe2), new_data = extract_nested_train_split(dat4)) %>% View()
+# Model ---------------------------------------------------------------------------------------
 
 # PROPHET
 mod_prophet = 
   tibble(
     expand_grid(
       growth = c('linear'),
-      changepoint_num = c(2, 3, 5, 10, 25),
-      changepoint_range = c(0.8, 0.9),
+      changepoint_num = 25,
+      changepoint_range = c(0.90),
       seasonality_yearly = TRUE,
       seasonality_weekly = FALSE,
       seasonality_daily = FALSE,
       season = c('additive'),
-      prior_scale_changepoints = c(0.05, 0.1, 1, 10, 20),
-      prior_scale_seasonality = c(5, 10, 15)
+      prior_scale_changepoints = c(0.05, 0.1, 0.2, 0.5),
+      prior_scale_seasonality = c(0.1, 0.5, 1, 5, 10)
     )
   ) %>% 
   create_model_grid(f_model_spec = prophet_reg,
                     engine_name = 'prophet',
-                    mode = 'regression')
-mod_prophet = mod_prophet$.models
+                    mode = 'regression'); mod_prophet = mod_prophet$.models
+
+# ARIMA
+mod_arima = 
+  arima_reg(mode = 'regression') %>% 
+  set_engine('auto_arima')
 
 # EXPSMOOTH
 mod_expsmooth = 
   exp_smoothing() %>% 
   set_engine('ets')
 
-# ARIMA-BOOST
-mod_arimaxgb = 
+# ARIMA_XGB
+mod_arima_xgb = 
   tibble(
     expand_grid(
-      tree_depth = c(4, 6, 8),
-      learn_rate = c(0.010, 0.025, 0.050, 0.100, 0.125),
-      stop_iter = c(3)
+      tree_depth = c(4, 8, 12),
+      learn_rate = c(0.010, 0.030, 0.050)
     )
   ) %>% 
   create_model_grid(f_model_spec = arima_boost,
                     engine_name = 'auto_arima_xgboost',
-                    mode = 'regression')
-mod_arimaxgb = mod_arimaxgb$.models
+                    mode = 'regression'); mod_arima_xgb = mod_arima_xgb$.models
 
-# PROPHET-BOOST
-mod_prophetxgb = 
+# PROPHET-XGB
+mod_prophet_xgb = 
   tibble(
     expand_grid(
       growth = c('linear'),
-      changepoint_num = c(3, 5, 10, 25),
-      changepoint_range = c(0.9),
+      changepoint_num = 25,
+      changepoint_range = c(0.90),
       seasonality_yearly = TRUE,
       seasonality_weekly = FALSE,
       seasonality_daily = FALSE,
       season = c('additive'),
-      prior_scale_changepoints = c(0.05, 0.1, 1, 10, 20),
-      prior_scale_seasonality = c(5, 10, 15),
-      tree_depth = c(4, 6, 8),
-      learn_rate = c(0.010, 0.025, 0.050, 0.100, 0.125),
-      stop_iter = c(3)
+      prior_scale_changepoints = c(0.05, 0.1, 0.2, 0.5),
+      prior_scale_seasonality = c(0.1, 0.5, 1, 5, 10),
+      tree_depth = c(4, 8, 12),
+      learn_rate = c(0.010, 0.030, 0.050)
     )
   ) %>% 
   create_model_grid(f_model_spec = prophet_boost,
                     engine_name = 'prophet_xgboost',
-                    mode = 'regression')
-mod_prophetxgb = mod_prophetxgb$.models
+                    mode = 'regression'); mod_prophet_xgb = mod_prophet_xgb$.models
 
-# Workflows ---------------------------------------------------------------
-
-# ARIMA
-wflw_arima_o1 =
-  workflow() %>% 
-  add_model(mod_arima) %>% 
-  add_recipe(recipe_o1)
-wflw_arima_i1 =
-  workflow() %>% 
-  add_model(mod_arima) %>% 
-  add_recipe(recipe_i1)
+# Workflow ------------------------------------------------------------------------------------
 
 # PROPHET
-wflw_prophet_i1 =
-  workflow_set(preproc = list(recipe_i1),
+wflw_prophet =
+  workflow_set(preproc = list(recipe1),
                models = mod_prophet,
                cross = TRUE)
-wflw_prophet_i1 =  sapply(wflw_prophet_i1[[2]], function(i) i[[1]])
-wflw_prophet_o1 =
-  workflow_set(preproc = list(recipe_o1),
-               models = mod_prophet,
-               cross = TRUE)
-wflw_prophet_o1 =  sapply(wflw_prophet_o1[[2]], function(i) i[[1]])
+wflw_prophet =  sapply(wflw_prophet[[2]], function(i) i[[1]])
+
+# ARIMA
+wflw_arima =
+  workflow() %>% 
+  add_model(mod_arima) %>% 
+  add_recipe(recipe1)
 
 # EXPSMOOTH
-wflw_ets_i1 = 
+wflw_ets = 
   workflow() %>% 
   add_model(mod_expsmooth) %>% 
-  add_recipe(recipe_i1)
-wflw_ets_o1 = 
-  workflow() %>% 
-  add_model(mod_expsmooth) %>% 
-  add_recipe(recipe_o1)
+  add_recipe(recipe1)
 
-# ATIMA-BOOST
-wflw_arimaxgb_o1 =
-  workflow_set(preproc = list(recipe_o2),
-               models = mod_arimaxgb,
+# ARIMA-XGB
+wflw_arima_xgb =
+  workflow_set(preproc = list(recipe2),
+               models = mod_arima_xgb,
                cross = TRUE)
-wflw_arimaxgb_o1 =  sapply(wflw_arimaxgb_o1[[2]], function(i) i[[1]])
-wflw_arimaxgb_i1 =
-  workflow_set(preproc = list(recipe_i2),
-               models = mod_arimaxgb,
+wflw_arima_xgb =  sapply(wflw_arima_xgb
+                         [[2]], function(i) i[[1]])
+
+# PROPHET-XGB
+wflw_prophet_xgb =
+  workflow_set(preproc = list(recipe2),
+               models = mod_prophet_xgb,
                cross = TRUE)
+wflw_prophet_xgb =  sapply(wflw_prophet_xgb
+                           [[2]], function(i) i[[1]])
 
-wflw_arimaxgb_i1 =  sapply(wflw_arimaxgb_i1[[2]], function(i) i[[1]])
-
-# PROPHET-BOOST
-wflw_prophetxgb_o1 =
-  workflow_set(preproc = list(recipe_o2),
-               models = mod_prophetxgb,
-               cross = TRUE)
-wflw_prophetxgb_o1 =  sapply(wflw_prophetxgb_o1[[2]], function(i) i[[1]])
-wflw_prophetxgb_i1 =
-  workflow_set(preproc = list(recipe_i2),
-               models = mod_prophetxgb,
-               cross = TRUE)
-
-wflw_prophetxgb_i1 =  sapply(wflw_prophetxgb_i1[[2]], function(i) i[[1]])
-
-# Inflow  -----------------------------------------------------------------
+# Fit -----------------------------------------------------------------------------------------
 
 # Set num of cores used to fitting
 num_cores = parallel::detectCores()
@@ -250,112 +136,60 @@ num_cores = parallel::detectCores()
 # Start clusters
 parallel_start(num_cores)
 
-# Fit
-dat_i3 = 
-  modeltime_nested_fit(nested_data = dat_i2,
+dat5 = 
+  modeltime_nested_fit(nested_data = dat4,
                        model_list = 
-                         list(wflw_arima_i1, 
-                              wflw_ets_i1) %>% 
-                         append(wflw_arimaxgb_i1) %>% 
-                         append(wflw_prophet_i1) %>% 
-                         append(wflw_prophetxgb_i1),
+                         list(wflw_arima) %>%
+                         append(wflw_prophet_xgb) %>% 
+                         append(wflw_prophet),
                        control = control_nested_fit(allow_par = TRUE,
                                                     cores = as.numeric(num_cores),
                                                     verbose = TRUE))
-# Stop clusters
 parallel_stop()
 
 
-# Model rank 
-dat_i4 =
-  dat_i3 %>%
-  modeltime_nested_select_best(metric = "mae",
-                               minimize = TRUE, 
-                               filter_test_forecasts = TRUE)
+# Validate ------------------------------------------------------------------------------------
 
-
-# Refit 
-dat_i5 = 
-  dat_i4 %>%
-  modeltime_nested_refit(control = control_nested_refit(verbose = TRUE))
-
-
-# Validate 
-dat_i5 %>%
-  extract_nested_future_forecast() %>%
+# All models
+dat5 %>% 
+  extract_nested_test_forecast() %>%
   group_by(ts_id) %>%
-  plot_modeltime_forecast(.interactive = FALSE,
-                          .facet_ncol  = 5,
-                          .conf_interval_show = T)
-
-# Save
-saveRDS(dat_i3, paste0(dir_data, '\\dat_i3.RData'))
-saveRDS(dat_i4, paste0(dir_data, '\\dat_i4.RData'))
-saveRDS(dat_i5, paste0(dir_data, '\\dat_i5.RData'))
-
-# Clean up
-rm(dat_i3,
-   dat_i4,
-   dat_i5)
-gc()
-
-# Ouflow --------------------------------------------------------------------------------------
-
-# Set num of cores used to fitting
-num_cores = parallel::detectCores()
-
-# Start clusters
-parallel_start(num_cores)
-
-
-# Fit outflow
-dat_o3 = 
-  modeltime_nested_fit(nested_data = dat_o2,
-                       model_list = 
-                         list(wflw_arima_o1, 
-                              wflw_ets_o1) %>% 
-                         append(wflw_arimaxgb_o1) %>% 
-                         append(wflw_prophet_o1) %>% 
-                         append(wflw_prophetxgb_o1),
-                       control = control_nested_fit(allow_par = TRUE,
-                                                    cores = as.numeric(num_cores),
-                                                    verbose = TRUE))
-
-# Stop clusters
-parallel_stop()
+  plot_modeltime_forecast(
+    .facet_ncol  = 5,
+    .interactive = FALSE,
+    .conf_interval_show = FALSE
+  )
 
 # Model rank
-dat_o4 =
-  dat_o3 %>%
-  modeltime_nested_select_best(metric = "mae",
+dat6 =
+  dat5 %>%
+  modeltime_nested_select_best(metric = "rmse",
                                minimize = TRUE, 
                                filter_test_forecasts = TRUE)
 
+# All models
+dat6 %>% 
+  extract_nested_test_forecast() %>%
+  group_by(ts_id) %>%
+  plot_modeltime_forecast(
+    .facet_ncol  = 5,
+    .interactive = FALSE,
+    .conf_interval_show = FALSE
+  )
+
 # Refit
-dat_o5 = 
-  dat_o4 %>%
+dat7 = 
+  dat6 %>%
   modeltime_nested_refit(control = control_nested_refit(verbose = TRUE))
 
 # Validate
-dat_o5 %>%
+dat7 %>%
   extract_nested_future_forecast() %>%
   group_by(ts_id) %>%
   plot_modeltime_forecast(.interactive = FALSE,
                           .facet_ncol  = 5,
                           .conf_interval_show = T)
 
-# SAve
-saveRDS(dat_o3, paste0(dir_data, '\\dat_o3.RData'))
-saveRDS(dat_o4, paste0(dir_data, '\\dat_o4.RData'))
-saveRDS(dat_o5, paste0(dir_data, '\\dat_o5.RData'))
-
-# Clean up
-rm(dat_o3,
-   dat_o4,
-   dat_o5)
-gc()
-
-# Clean up ------------------------------------------------------------------------------------
-
-rm(list = setdiff(ls(), c('dir_code', 'dir_data', 'dir_root', 'colorblind')))
-gc()
+saveRDS(dat5, paste0(dir_data, '\\dat5.RDS'))
+saveRDS(dat6, paste0(dir_data, '\\dat6.RDS'))
+saveRDS(dat7, paste0(dir_data, '\\dat7.RDS'))

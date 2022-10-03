@@ -1,4 +1,4 @@
-future_len = 36
+future_len = 24
 
 # Load data ---------------------------------------------------------------
 
@@ -29,38 +29,36 @@ dat2 = dat1 %>%
     )
 
 
-# Outflow -----------------------------------------------------------------
-
-# time series
-dat_o = 
+dat3 =
   dat2 %>% 
-  filter(type == 'Outflow') %>% 
-  select(-type) %>%
   # go to base level
-  group_by(agegrp, 
+  group_by(type, 
+           agegrp, 
            hostgrp) %>%
   # crate base level ts by summing up number of records
   summarise_by_time(.date_var = migdate,
                     .by = 'month',
-                    freq = SUM(freq)) %>% 
-  # fill in dates where no event happened by 1
+                    freq0 = SUM(freq)) %>%
+  # fill in dates where no event happened by 0
   pad_by_time(.date_var = migdate,
               .by = 'month',
               .pad_value = 0,
               .start_date = '2010-01-01') %>% 
-  # value becomes the log of averages daily events in a month
-  mutate( freq = log( (freq+1) / days_in_month(migdate) ) ) %>% 
-  # create ts identifier
-  group_by(agegrp, hostgrp) %>% 
-  mutate(ts_id = cur_group_id()) %>% 
+  # value becomes the log of averages daily events in a month + first difference
+  mutate(freq = (freq0 + 1) / days_in_month(migdate),
+         freqlog = log(freq),
+         lambda =  BoxCox.lambda(freq, method = 'loglik'),
+         freqbc = (freq ^ lambda - 1) / lambda,
+         freqdiff = freq - lag(freq),
+         ts_id = cur_group_id()
+         ) %>% 
   ungroup()
+  
 
-# nested ts object
-dat_o2 = 
-  dat_o %>%
+dat4 = 
+  dat3 %>% 
   # before 2011 too much noise, afer 2019 covid test
   filter(migdate >= ymd('2011-01-01') & migdate <= ymd('2019-12-01')) %>% 
-  select(-agegrp, -hostgrp) %>% 
   # forecast 24 month (2020, 2021)
   extend_timeseries(.id_var = ts_id,
                     .date_var = migdate,
@@ -70,56 +68,9 @@ dat_o2 =
                   .length_actual = 108) %>% 
   # train test split
   split_nested_timeseries(.length_test = 12)
+  
 
-
-# Inflow *-----------------------------------------------------------------
-
-# time series
-dat_i = 
-  dat2 %>% 
-  filter(type == 'Inflow') %>% 
-  select(-type) %>%
-  # go to base level
-  group_by(agegrp, 
-           hostgrp) %>%
-  # crate base level ts by summing up number of records
-  summarise_by_time(.date_var = migdate,
-                    .by = 'month',
-                    freq = SUM(freq)) %>% 
-  # fill in dates where no event happened by 1
-  pad_by_time(.date_var = migdate,
-              .by = 'month',
-              .pad_value = 0,
-              .start_date = '2010-01-01') %>% 
-  # value becomes the log of averages daily events in a month
-  mutate( freq = log( (freq+1) / days_in_month(migdate) ) ) %>% 
-  # create ts identifier
-  group_by(agegrp, hostgrp) %>% 
-  mutate(ts_id = cur_group_id()) %>% 
-  ungroup()
-
-# nested ts object
-dat_i2 = 
-  dat_i %>%
-  as_tibble() %>% 
-  # before 2011 too much noise, afer 2019 covid test
-  filter(migdate >= ymd('2011-01-01') & migdate <= ymd('2019-12-01')) %>% 
-  select(-agegrp, -hostgrp) %>% 
-  # forecast 24 month (2020, 2021)
-  extend_timeseries(.id_var = ts_id,
-                    .date_var = migdate,
-                    .length_future = future_len) %>% 
-  nest_timeseries(.id_var = ts_id,
-                  .length_future = future_len,
-                  .length_actual = 108) %>% 
-  # train test split
-  split_nested_timeseries(.length_test = 12)
-
-
-# Save data ---------------------------------------------------------------
-
-write_feather(dat2, paste0(dir_data, '\\dat2.feather'))
-saveRDS(dat_o, paste0(dir_data, '\\dat_o.RData'))
-saveRDS(dat_o2, paste0(dir_data, '\\dat_o2.RData'))
-saveRDS(dat_i, paste0(dir_data, '\\dat_i.RData'))
-saveRDS(dat_i2, paste0(dir_data, '\\dat_i2.RData'))
+# Save ----------------------------------------------------------------------------------------
+saveRDS(dat2, paste0(dir_data, '\\dat2.RDS'))
+saveRDS(dat3, paste0(dir_data, '\\dat3.RDS'))
+saveRDS(dat4, paste0(dir_data, '\\dat4.RDS'))

@@ -1,279 +1,237 @@
-dat_i = readRDS(paste0(dir_data, '\\dat_i.RData'))
-dat_i5 = readRDS(paste0(dir_data, '\\dat_i5.RData'))
+dat3 = readRDS(paste0(dir_data, '\\dat3.RDS'))
+dat7 = readRDS(paste0(dir_data, '\\dat7.RDS'))
 
 
-dat_i6 =
-  dat_i %>%
-  as_tibble() %>% 
+# Base level ----------------------------------------------------------------------------------
+
+dat8 = 
+  dat3 %>% 
   left_join(
-    dat_i5 %>% 
-      extract_nested_future_forecast(),
+    dat7 %>% extract_nested_future_forecast(),
     by = c('ts_id' = 'ts_id',
            'migdate' = '.index')
   ) %>% 
-  filter(migdate >= ymd('2011-01-01')) %>% 
-  transmute(migdate,
-            ts_id,
-            agegrp,
-            hostgrp,
-            model_id = .model_id,
-            model_desc = case_when(.model_desc == 'ARIMA W XGBOOST ERRORS' ~ 'ARIMA (XGB)',
-                                   TRUE ~ .model_desc),
-            key = .key,
-            act_log = freq,
-            pred_log = .value,
-            pred_lo_log = .conf_lo,
-            pred_hi_log = .conf_hi,
-            act_abs_avg = exp(act_log),
-            pred_abs_avg = exp(pred_log),
-            pred_lo_abs_avg = exp(pred_lo_log),
-            pred_hi_abs_avg = exp(pred_hi_log),
-            act_abs_mth = days_in_month(migdate) * act_abs_avg,
-            pred_abs_mth = days_in_month(migdate) * pred_abs_avg,
-            pred_lo_abs_mth = days_in_month(migdate) * pred_lo_abs_avg,
-            pred_hi_abs_mth = days_in_month(migdate) * pred_hi_abs_avg
-  )
-
-
-dat_i6_low =
-  dat_i6 %>% 
-  select(migdate, ts_id, agegrp, hostgrp, model_desc, key, act_abs_mth, pred_abs_mth,
-         pred_lo_abs_mth, pred_hi_abs_mth) %>%
-  mutate(pred_v1 = pred_abs_mth,
-         pred_v1_lo = pred_lo_abs_mth,
-         pred_v1_hi = pred_hi_abs_mth)
-
-# dat_i6_low %>%
-#   filter(ts_id == 9) %>%
-#   ggplot() +
-#   facet_grid(agegrp ~ hostgrp) +
-#   geom_ribbon(aes(x = migdate,
-#                   ymin = pred_v1_lo,
-#                   ymax = pred_v1_hi),
-#               fill = colorblind$red,
-#               alpha = 0.3) +
-#   geom_line(aes(x = migdate,
-#                 y = pred_v1),
-#             color = colorblind$red) +
-#   geom_line(aes(x = migdate,
-#                 y = act_abs_mth)) +
-#   theme_bw()
-
-dat_i6_mid_age = 
-  dat_i6_low %>% 
-  group_by(migdate, agegrp) %>% 
-  summarise(act_abs_mth = sum(act_abs_mth),
-            pred_v1 = sum(pred_v1),
-            pred_v1_lo = sum(pred_v1_lo),
-            pred_v1_hi = sum(pred_v1_hi))
-
-# dat_i6_mid_age %>%
-#   ggplot() +
-#   facet_grid(agegrp ~ ., scales = 'free') +
-#   geom_ribbon(aes(x = migdate,
-#                   ymin = pred_v1_lo,
-#                   ymax = pred_v1_hi),
-#               fill = colorblind$red,
-#               alpha = 0.3) +
-#   geom_line(aes(x = migdate,
-#                 y = pred_v1),
-#             color = colorblind$red) +
-#   geom_line(aes(x = migdate,
-#                 y = act_abs_mth)) +
-#   theme_bw()
-
-dat_i6_mid_host = 
-  dat_i6_low %>% 
-  group_by(migdate, hostgrp) %>% 
-  summarise(act_abs_mth = sum(act_abs_mth),
-            pred_v1 = sum(pred_v1),
-            pred_v1_lo = sum(pred_v1_lo),
-            pred_v1_hi = sum(pred_v1_hi))
-
-# dat_i6_mid_host %>%
-#   ggplot() +
-#   facet_grid(hostgrp ~ ., scales = 'free') +
-#   geom_ribbon(aes(x = migdate,
-#                   ymin = pred_v1_lo,
-#                   ymax = pred_v1_hi),
-#               fill = colorblind$red,
-#               alpha = 0.3) +
-#   geom_line(aes(x = migdate,
-#                 y = pred_v1),
-#             color = colorblind$red) +
-#   geom_line(aes(x = migdate,
-#                 y = act_abs_mth)) +
-#   theme_bw()
-
-
-dat_i6_high = 
-  dat_i6_low %>% 
-  group_by(migdate) %>% 
-  summarise(act_abs_mth = sum(act_abs_mth),
-            pred_v1 = sum(pred_v1),
-            pred_v1_lo = sum(pred_v1_lo),
-            pred_v1_hi = sum(pred_v1_hi))
-
-# dat_i6_high %>%
-#   ggplot() +
-#   geom_ribbon(aes(x = migdate,
-#                   ymin = pred_v1_lo,
-#                   ymax = pred_v1_hi),
-#               fill = colorblind$red,
-#               alpha = 0.3) +
-#   geom_line(aes(x = migdate,
-#                 y = pred_v1),
-#             color = colorblind$red) +
-#   geom_line(aes(x = migdate,
-#                 y = act_abs_mth)) +
-#   theme_bw()
-
-
-dat_i_v1 = 
-  bind_rows(dat_i6_low,
-            dat_i6_mid_age,
-            dat_i6_mid_host,
-            dat_i6_high)
-
-saveRDS(dat_i_v1, paste0(dir_data, '\\dat_i_v1.RData'))
-
-# Outflow -------------------------------------------------------------------------------------
-
-dat_o = readRDS(paste0(dir_data, '\\dat_o.RData'))
-dat_o5 = readRDS(paste0(dir_data, '\\dat_o5.RData'))
-
-
-dat_o6 =
-  dat_o %>%
-  as_tibble() %>% 
-  left_join(
-    dat_o5 %>% 
-      extract_nested_future_forecast(),
-    by = c('ts_id' = 'ts_id',
-           'migdate' = '.index')
+  filter(migdate >= '2011-01-01') %>% 
+  mutate(actual = exp(freqlog) * days_in_month(migdate),
+         .conf_lo = ifelse(is.na(.conf_lo), freqlog, .conf_lo),
+         .conf_hi = ifelse(is.na(.conf_hi), freqlog, .conf_hi)) %>% 
+  mutate(
+    pred_mi = exp(.value) * days_in_month(migdate),
+    pred_lo = exp(.conf_lo) * days_in_month(migdate),
+    pred_hi = exp(.conf_hi) * days_in_month(migdate),
+    pred_mi_perc = (actual / pred_mi - 1),
+    pred_lo_perc = (actual / pred_lo - 1),
+    pred_hi_perc = (actual / pred_hi - 1)
   ) %>% 
-  filter(migdate >= ymd('2011-01-01')) %>% 
-  transmute(migdate,
-            ts_id,
-            agegrp,
-            hostgrp,
-            model_id = .model_id,
-            model_desc = case_when(.model_desc == 'ARIMA W XGBOOST ERRORS' ~ 'ARIMA (XGB)',
-                                   TRUE ~ .model_desc),
-            key = .key,
-            act_log = freq,
-            pred_log = .value,
-            pred_lo_log = .conf_lo,
-            pred_hi_log = .conf_hi,
-            act_abs_avg = exp(act_log),
-            pred_abs_avg = exp(pred_log),
-            pred_lo_abs_avg = exp(pred_lo_log),
-            pred_hi_abs_avg = exp(pred_hi_log),
-            act_abs_mth = days_in_month(migdate) * act_abs_avg,
-            pred_abs_mth = days_in_month(migdate) * pred_abs_avg,
-            pred_lo_abs_mth = days_in_month(migdate) * pred_lo_abs_avg,
-            pred_hi_abs_mth = days_in_month(migdate) * pred_hi_abs_avg
-  )
+  group_by(ts_id) %>% 
+  mutate(
+    pred_mi_cum = cumsum(pred_mi),
+    pred_lo_cum = cumsum(pred_lo),
+    pred_hi_cum = cumsum(pred_hi),
+    actual_cum = cumsum(actual)
+    )
+
+# dat8 = 
+#   dat3 %>% 
+#   left_join(
+#     dat7 %>% extract_nested_future_forecast(),
+#     by = c('ts_id' = 'ts_id',
+#            'migdate' = '.index')
+#   ) %>% 
+#   filter(migdate >= '2011-01-01') %>% 
+#   mutate(actual = exp(freqlog) * days_in_month(migdate),
+#          .conf_lo = ifelse(is.na(.conf_lo), freqlog, .conf_lo),
+#          .conf_hi = ifelse(is.na(.conf_hi), freqlog, .conf_hi)) %>% 
+#   mutate(
+#     pred_mi = (lambda * .value + 1) ^ (1/lambda) * days_in_month(migdate),
+#     pred_lo = (lambda * .conf_lo + 1) ^ (1/lambda) * days_in_month(migdate),
+#     pred_hi = (lambda * .conf_hi + 1) ^ (1/lambda) * days_in_month(migdate),
+#     pred_mi_perc = (actual / pred_mi - 1),
+#     pred_lo_perc = (actual / pred_lo - 1),
+#     pred_hi_perc = (actual / pred_hi - 1)
+#   ) %>% 
+#   group_by(ts_id) %>% 
+#   mutate(
+#     pred_mi_cum = cumsum(pred_mi),
+#     pred_lo_cum = cumsum(pred_lo),
+#     pred_hi_cum = cumsum(pred_hi),
+#     actual_cum = cumsum(actual)
+#   )
+
+## Inflow #############
+
+### Abs ###############
+plt_base_in_abs = 
+  dat8 %>% 
+  filter(type == 'Inflow') %>% 
+  ggplot() +
+  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  geom_ribbon(aes(x = migdate,
+                  ymin = pred_lo,
+                  ymax = pred_hi,
+                  fill = .model_desc),
+              alpha = 0.2) +
+  geom_line(aes(x = migdate,
+                y = pred_mi,
+                color = .model_desc)) +
+  geom_line(aes(x = migdate,
+                y = actual)) +
+  scale_color_manual(values = c('black',
+                                colorblind$green,
+                                colorblind$lblue,
+                                colorblind$red)) +
+  scale_fill_manual(values = c('black',
+                               colorblind$green,
+                               colorblind$lblue,
+                               colorblind$red)) +
+  theme_bw() + 
+  theme(legend.position = 'bottom'); plt_base_in_abs
+
+ggsave(plt_base_in_abs,
+       filename = paste0(dir_out, '\\plt_base_in_abs.png'),
+       width = 40,
+       units = 'cm',
+       dpi = 1000)
+
+### Perc ###############
+plt_base_in_perc = 
+  dat8 %>% 
+  filter(type == 'Inflow' & migdate >= '2020-01-01') %>% 
+  ggplot() +
+  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  geom_hline(yintercept = 0,
+             linetype = '31') +
+  geom_ribbon(aes(x = migdate,
+                  ymin = pred_lo_perc,
+                  ymax = pred_hi_perc),
+              alpha = 0.2,
+              fill = colorblind$lblue) +
+  geom_line(aes(x = migdate,
+                y = pred_mi_perc),
+            color = colorblind$lblue) +
+  geom_point(aes(x = migdate,
+                 y = pred_mi_perc),
+             color = colorblind$lblue) +
+  theme_bw() + 
+  theme(legend.position = 'bottom'); plt_base_in_perc
+
+ggsave(plt_base_in_perc,
+       filename = paste0(dir_out, '\\plt_base_in_perc.png'),
+       width = 40,
+       units = 'cm',
+       dpi = 1000)
+
+### Cum ################
+plt_base_in_cum = 
+  dat8 %>% 
+  filter(type == 'Inflow' & migdate >= '2020-01-01') %>% 
+  ggplot() +
+  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  geom_ribbon(aes(x = migdate,
+                  ymin = pred_lo_cum,
+                  ymax = pred_hi_cum),
+              alpha = 0.2,
+              fill = colorblind$lblue) +
+  geom_line(aes(x = migdate,
+                y = pred_mi_cum),
+            color = colorblind$lblue) +
+  geom_line(aes(x = migdate,
+                y = actual_cum)) +
+  theme_bw() + 
+  theme(legend.position = 'bottom'); plt_base_in_cum
+
+ggsave(plt_base_in_cum,
+       filename = paste0(dir_out, '\\plt_base_in_cum.png'),
+       width = 40,
+       units = 'cm',
+       dpi = 1000)
 
 
-dat_o6_low =
-  dat_o6 %>% 
-  select(migdate, ts_id, agegrp, hostgrp, model_desc, key, act_abs_mth, pred_abs_mth,
-         pred_lo_abs_mth, pred_hi_abs_mth) %>%
-  mutate(pred_v1 = pred_abs_mth,
-         pred_v1_lo = pred_lo_abs_mth,
-         pred_v1_hi = pred_hi_abs_mth)
+## Outflow #############
 
-# dat_o6_low %>%
-#   filter(ts_id == 9) %>%
-#   ggplot() +
-#   facet_grid(agegrp ~ hostgrp) +
-#   geom_ribbon(aes(x = migdate,
-#                   ymin = pred_v1_lo,
-#                   ymax = pred_v1_hi),
-#               fill = colorblind$red,
-#               alpha = 0.3) +
-#   geom_line(aes(x = migdate,
-#                 y = pred_v1),
-#             color = colorblind$red) +
-#   geom_line(aes(x = migdate,
-#                 y = act_abs_mth)) +
-#   theme_bw()
+### Abs ###############
+plt_base_out_abs = 
+  dat8 %>% 
+  filter(type == 'Outflow') %>% 
+  ggplot() +
+  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  geom_ribbon(aes(x = migdate,
+                  ymin = pred_lo,
+                  ymax = pred_hi,
+                  fill = .model_desc),
+              alpha = 0.2) +
+  geom_line(aes(x = migdate,
+                y = pred_mi,
+                color = .model_desc)) +
+  geom_line(aes(x = migdate,
+                y = actual)) +
+  scale_color_manual(values = c('black',
+                                colorblind$green,
+                                colorblind$lblue,
+                                colorblind$red)) +
+  scale_fill_manual(values = c('black',
+                               colorblind$green,
+                               colorblind$lblue,
+                               colorblind$red)) +
+  theme_bw() + 
+  theme(legend.position = 'bottom'); plt_base_out_abs
 
-dat_o6_mid_age = 
-  dat_o6_low %>% 
-  group_by(migdate, agegrp) %>% 
-  summarise(act_abs_mth = sum(act_abs_mth),
-            pred_v1 = sum(pred_v1),
-            pred_v1_lo = sum(pred_v1_lo),
-            pred_v1_hi = sum(pred_v1_hi))
+ggsave(plt_base_out_abs,
+       filename = paste0(dir_out, '\\plt_base_out_abs.png'),
+       width = 40,
+       units = 'cm',
+       dpi = 1000)
 
-# dat_o6_mid_age %>%
-#   ggplot() +
-#   facet_grid(agegrp ~ ., scales = 'free') +
-#   geom_ribbon(aes(x = migdate,
-#                   ymin = pred_v1_lo,
-#                   ymax = pred_v1_hi),
-#               fill = colorblind$red,
-#               alpha = 0.3) +
-#   geom_line(aes(x = migdate,
-#                 y = pred_v1),
-#             color = colorblind$red) +
-#   geom_line(aes(x = migdate,
-#                 y = act_abs_mth)) +
-#   theme_bw()
+### Perc ###############
+plt_base_out_perc = 
+  dat8 %>% 
+  filter(type == 'Outflow' & migdate >= '2020-01-01') %>% 
+  ggplot() +
+  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  geom_hline(yintercept = 0,
+             linetype = '31') +
+  geom_ribbon(aes(x = migdate,
+                  ymin = pred_lo_perc,
+                  ymax = pred_hi_perc),
+              alpha = 0.2,
+              fill = colorblind$lblue) +
+  geom_line(aes(x = migdate,
+                y = pred_mi_perc),
+            color = colorblind$lblue) +
+  geom_point(aes(x = migdate,
+                 y = pred_mi_perc),
+             color = colorblind$lblue) +
+  theme_bw() + 
+  theme(legend.position = 'bottom'); plt_base_out_perc
 
-dat_o6_mid_host = 
-  dat_o6_low %>% 
-  group_by(migdate, hostgrp) %>% 
-  summarise(act_abs_mth = sum(act_abs_mth),
-            pred_v1 = sum(pred_v1),
-            pred_v1_lo = sum(pred_v1_lo),
-            pred_v1_hi = sum(pred_v1_hi))
+ggsave(plt_base_out_perc,
+       filename = paste0(dir_out, '\\plt_base_out_perc.png'),
+       width = 40,
+       units = 'cm',
+       dpi = 1000)
 
-# dat_o6_mid_host %>%
-#   ggplot() +
-#   facet_grid(hostgrp ~ ., scales = 'free') +
-#   geom_ribbon(aes(x = migdate,
-#                   ymin = pred_v1_lo,
-#                   ymax = pred_v1_hi),
-#               fill = colorblind$red,
-#               alpha = 0.3) +
-#   geom_line(aes(x = migdate,
-#                 y = pred_v1),
-#             color = colorblind$red) +
-#   geom_line(aes(x = migdate,
-#                 y = act_abs_mth)) +
-#   theme_bw()
+### Cum ################
+plt_base_in_cum = 
+  dat8 %>% 
+  filter(type == 'Inflow' & migdate >= '2020-01-01') %>% 
+  ggplot() +
+  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  geom_ribbon(aes(x = migdate,
+                  ymin = pred_lo_cum,
+                  ymax = pred_hi_cum),
+              alpha = 0.2,
+              fill = colorblind$lblue) +
+  geom_line(aes(x = migdate,
+                y = pred_mi_cum),
+            color = colorblind$lblue) +
+  geom_line(aes(x = migdate,
+                y = actual_cum)) +
+  theme_bw() + 
+  theme(legend.position = 'bottom'); plt_base_in_cum
 
+ggsave(plt_base_in_cum,
+       filename = paste0(dir_out, '\\plt_base_in_cum.png'),
+       width = 40,
+       units = 'cm',
+       dpi = 1000)
 
-dat_o6_high = 
-  dat_o6_low %>% 
-  group_by(migdate) %>% 
-  summarise(act_abs_mth = sum(act_abs_mth),
-            pred_v1 = sum(pred_v1),
-            pred_v1_lo = sum(pred_v1_lo),
-            pred_v1_hi = sum(pred_v1_hi))
-
-# dat_o6_high %>%
-#   ggplot() +
-#   geom_ribbon(aes(x = migdate,
-#                   ymin = pred_v1_lo,
-#                   ymax = pred_v1_hi),
-#               fill = colorblind$red,
-#               alpha = 0.3) +
-#   geom_line(aes(x = migdate,
-#                 y = pred_v1),
-#             color = colorblind$red) +
-#   geom_line(aes(x = migdate,
-#                 y = act_abs_mth)) +
-#   theme_bw()
-
-
-dat_o_v1 = 
-  bind_rows(dat_o6_low,
-            dat_o6_mid_age,
-            dat_o6_mid_host,
-            dat_o6_high)
-
-saveRDS(dat_o_v1, paste0(dir_data, '\\dat_o_v1.RData'))
