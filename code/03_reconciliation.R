@@ -18,10 +18,7 @@ dat_base =
   mutate(
     pred_mi = exp(.value) * days_in_month(migdate),
     pred_lo = exp(.conf_lo) * days_in_month(migdate),
-    pred_hi = exp(.conf_hi) * days_in_month(migdate),
-    pred_mi_perc = (actual / pred_mi - 1),
-    pred_lo_perc = (actual / pred_lo - 1),
-    pred_hi_perc = (actual / pred_hi - 1)
+    pred_hi = exp(.conf_hi) * days_in_month(migdate)
   ) %>% 
   group_by(ts_id) %>% 
   mutate(
@@ -29,10 +26,11 @@ dat_base =
     pred_lo_cum = cumsum(pred_lo),
     pred_hi_cum = cumsum(pred_hi),
     actual_cum = cumsum(actual)
-    )
+    ) %>% 
+  ungroup()
 
 dat_recon = 
-  dat8 %>% 
+  dat_base %>% 
   group_by(type, agegrp, hostgrp, migdate, .key) %>% 
   summarise(freq0 = sum(freq0),
             actual = sum(actual),
@@ -41,9 +39,10 @@ dat_recon =
             pred_hi = sum(pred_hi),
             pred_mi_cum = sum(pred_mi_cum),
             pred_lo_cum = sum(pred_lo_cum),
-            pred_hi_cum = sum(pred_hi_cum)) %>% 
+            pred_hi_cum = sum(pred_hi_cum),
+            actual_cum = sum(actual_cum)) %>% 
   bind_rows(
-    dat8 %>% 
+    dat_base %>% 
       group_by(type, agegrp, hostgrp = 'Aggregated', migdate, .key) %>% 
       summarise(freq0 = sum(freq0),
                 actual = sum(actual),
@@ -52,8 +51,9 @@ dat_recon =
                 pred_hi = sum(pred_hi),
                 pred_mi_cum = sum(pred_mi_cum),
                 pred_lo_cum = sum(pred_lo_cum),
-                pred_hi_cum = sum(pred_hi_cum)),
-    dat8 %>% 
+                pred_hi_cum = sum(pred_hi_cum),
+                actual_cum = sum(actual_cum)),
+    dat_base %>% 
       group_by(type, agegrp = 'Aggregated', hostgrp, migdate, .key) %>% 
       summarise(freq0 = sum(freq0),
                 actual = sum(actual),
@@ -62,8 +62,9 @@ dat_recon =
                 pred_hi = sum(pred_hi),
                 pred_mi_cum = sum(pred_mi_cum),
                 pred_lo_cum = sum(pred_lo_cum),
-                pred_hi_cum = sum(pred_hi_cum)),
-    dat8 %>% 
+                pred_hi_cum = sum(pred_hi_cum),
+                actual_cum = sum(actual_cum)),
+    dat_base %>% 
       group_by(type, agegrp = 'Aggregated', hostgrp = 'Aggregated', migdate, .key) %>% 
       summarise(freq0 = sum(freq0),
                 actual = sum(actual),
@@ -72,8 +73,10 @@ dat_recon =
                 pred_hi = sum(pred_hi),
                 pred_mi_cum = sum(pred_mi_cum),
                 pred_lo_cum = sum(pred_lo_cum),
-                pred_hi_cum = sum(pred_hi_cum))
-  )
+                pred_hi_cum = sum(pred_hi_cum),
+                actual_cum = sum(actual_cum))
+  ) %>% 
+  ungroup()
 
 
 # Save ----------------------------------------------------------------------------------------

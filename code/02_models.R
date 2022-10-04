@@ -94,7 +94,8 @@ mod_prophet_xgb =
 # TBATS
 mod_tbats = 
   seasonal_reg() %>% 
-  set_engine('tbats')
+  set_engine('tbats',
+             use.box.cox = FALSE)
 
 # Workflow ------------------------------------------------------------------------------------
 
