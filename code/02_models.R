@@ -24,9 +24,10 @@ recipe2 =
           contains('week')) %>% 
   step_rm(freq0, freqbc, freq, freqdiff) %>% 
   # one-hot dummy encoding
-  step_dummy(all_nominal_predictors(), one_hot = TRUE)
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>% 
+  step_normalize(matches("(index.num$)|(_year$)"))
 
-bake(prep(recipe2), new_data = extract_nested_train_split(dat4)) %>% View()
+#bake(prep(recipe2), new_data = extract_nested_train_split(dat4)) %>% View()
 # Model ---------------------------------------------------------------------------------------
 
 # PROPHET
@@ -62,8 +63,8 @@ mod_expsmooth =
 mod_arima_xgb = 
   tibble(
     expand_grid(
-      tree_depth = c(4, 8, 12),
-      learn_rate = c(0.010, 0.030, 0.050)
+      learn_rate = c(0.2, 0.1, 0.3),
+      min_n = 2
     )
   ) %>% 
   create_model_grid(f_model_spec = arima_boost,
@@ -83,8 +84,8 @@ mod_prophet_xgb =
       season = c('additive'),
       prior_scale_changepoints = c(0.05, 0.1, 0.2, 0.5),
       prior_scale_seasonality = c(0.1, 0.5, 1, 5, 10),
-      tree_depth = c(4, 8, 12),
-      learn_rate = c(0.010, 0.030, 0.050)
+      learn_rate = c(0.1, 0.2, 0.3),
+      min_n = 2
     )
   ) %>% 
   create_model_grid(f_model_spec = prophet_boost,
@@ -142,7 +143,7 @@ wflw_tbats =
 
 
 # Fit -----------------------------------------------------------------------------------------
-
+set.seed(07635)
 # Set num of cores used to fitting
 num_cores = parallel::detectCores()
 
@@ -153,8 +154,10 @@ dat5 =
   modeltime_nested_fit(nested_data = dat4,
                        model_list = 
                          list(wflw_arima,
-                              wflw_tbats) %>%
-                         #append(wflw_prophet_xgb) %>% 
+                              wflw_tbats, 
+                              wflw_ets) %>%
+                         append(wflw_arima_xgb) %>% 
+                         append(wflw_prophet_xgb) %>% 
                          append(wflw_prophet),
                        control = control_nested_fit(allow_par = TRUE,
                                                     cores = as.numeric(num_cores),

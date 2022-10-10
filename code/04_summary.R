@@ -16,16 +16,16 @@ dat_base %>%
                 color = .model_desc)) +
   geom_line(aes(x = migdate,
                 y = actual)) +
-  scale_color_manual(values = c('black',
-                                colorblind$green,
-                                colorblind$lblue,
-                                colorblind$red),
-                     name = 'Model family') +
-  scale_fill_manual(values = c('black',
-                               colorblind$green,
-                               colorblind$lblue,
-                               colorblind$red),
-                    name = 'Model family') +
+  # scale_color_manual(values = c('black',
+  #                               colorblind$green,
+  #                               colorblind$lblue,
+  #                               colorblind$red),
+  #                    name = 'Model family') +
+  # scale_fill_manual(values = c('black',
+  #                              colorblind$green,
+  #                              colorblind$lblue,
+  #                              colorblind$red),
+  #                   name = 'Model family') +
   theme_bw() + 
   theme(legend.position = 'bottom',
         axis.title.x = element_blank()) +
@@ -58,14 +58,14 @@ dat_base %>%
                  y = pred_mi_perc,
                  color = .model_desc),
              size = 2) +
-  scale_color_manual(values = c(colorblind$green,
-                                colorblind$lblue,
-                                colorblind$red),
-                     name = 'Model family') +
-  scale_fill_manual(values = c(colorblind$green,
-                               colorblind$lblue,
-                               colorblind$red),
-                    name = 'Model family') +
+  # scale_color_manual(values = c(colorblind$green,
+  #                               colorblind$lblue,
+  #                               colorblind$red),
+  #                    name = 'Model family') +
+  # scale_fill_manual(values = c(colorblind$green,
+  #                              colorblind$lblue,
+  #                              colorblind$red),
+  #                   name = 'Model family') +
   # scale_shape_manual(values = c(1, 21)) +
   theme_bw() + 
   theme(legend.position = 'bottom',
@@ -93,14 +93,14 @@ dat_base %>%
   geom_point(aes(x = migdate,
                  y = actual_cum / pred_mi_cum * 100,
                  color = .model_desc)) +
-  scale_color_manual(values = c(colorblind$green,
-                                colorblind$lblue,
-                                colorblind$red),
-                     name = 'Model family') +
-  scale_fill_manual(values = c(colorblind$green,
-                               colorblind$lblue,
-                               colorblind$red),
-                    name = 'Model family') +
+  # scale_color_manual(values = c(colorblind$green,
+  #                               colorblind$lblue,
+  #                               colorblind$red),
+  #                    name = 'Model family') +
+  # scale_fill_manual(values = c(colorblind$green,
+  #                              colorblind$lblue,
+  #                              colorblind$red),
+  #                   name = 'Model family') +
   theme_bw() + 
   theme(legend.position = 'bottom',
         axis.title.x = element_blank()) +
@@ -127,16 +127,16 @@ dat_base %>%
                 color = .model_desc)) +
   geom_line(aes(x = migdate,
                 y = actual)) +
-  scale_color_manual(values = c('black',
-                                colorblind$green,
-                                colorblind$lblue,
-                                colorblind$red),
-                     name = 'Model family') +
-  scale_fill_manual(values = c('black',
-                               colorblind$green,
-                               colorblind$lblue,
-                               colorblind$red),
-                    name = 'Model family') +
+  # scale_color_manual(values = c('black',
+  #                               colorblind$green,
+  #                               colorblind$lblue,
+  #                               colorblind$red),
+  #                    name = 'Model family') +
+  # scale_fill_manual(values = c('black',
+  #                              colorblind$green,
+  #                              colorblind$lblue,
+  #                              colorblind$red),
+  #                   name = 'Model family') +
   theme_bw() + 
   theme(legend.position = 'bottom',
         axis.title.x = element_blank()) +
@@ -169,14 +169,14 @@ dat_base %>%
                  y = pred_mi_perc,
                  color = .model_desc),
              size = 2) +
-  scale_color_manual(values = c(colorblind$green,
-                                colorblind$lblue,
-                                colorblind$red),
-                     name = 'Model family') +
-  scale_fill_manual(values = c(colorblind$green,
-                               colorblind$lblue,
-                               colorblind$red),
-                    name = 'Model family') +
+  # scale_color_manual(values = c(colorblind$green,
+  #                               colorblind$lblue,
+  #                               colorblind$red),
+  #                    name = 'Model family') +
+  # scale_fill_manual(values = c(colorblind$green,
+  #                              colorblind$lblue,
+  #                              colorblind$red),
+  #                   name = 'Model family') +
   # scale_shape_manual(values = c(1, 21)) +
   theme_bw() + 
   theme(legend.position = 'bottom',
@@ -205,14 +205,14 @@ dat_base %>%
                  y = actual_cum / pred_mi_cum * 100,
                  color = .model_desc),
              size = 2) +
-  scale_color_manual(values = c(colorblind$green,
-                                colorblind$lblue,
-                                colorblind$red),
-                     name = 'Model family') +
-  scale_fill_manual(values = c(colorblind$green,
-                               colorblind$lblue,
-                               colorblind$red),
-                    name = 'Model family') +
+  # scale_color_manual(values = c(colorblind$green,
+  #                               colorblind$lblue,
+  #                               colorblind$red),
+  #                    name = 'Model family') +
+  # scale_fill_manual(values = c(colorblind$green,
+  #                              colorblind$lblue,
+  #                              colorblind$red),
+  #                   name = 'Model family') +
   # scale_shape_manual(values = c(1, 21)) +
   theme_bw() + 
   theme(legend.position = 'bottom',
