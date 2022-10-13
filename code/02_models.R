@@ -14,20 +14,17 @@ recipe1 =
 recipe2 =
   recipe(freqlog ~ .,
          data = extract_nested_train_split(dat4)) %>%
-  # creates ts features from date column
   step_timeseries_signature(migdate) %>%
-  # removes constant columns
   step_zv(all_predictors()) %>%
   step_rm(contains("iso"), 
           contains("second"), contains("minute"), contains("hour"),
           contains("am.pm"), contains("xts"), contains('day'), 
           contains('week')) %>% 
-  step_rm(freq0, freqbc, freq, freqdiff) %>% 
-  # one-hot dummy encoding
+  step_rm(freq0, freq) %>% 
   step_dummy(all_nominal_predictors(), one_hot = TRUE) %>% 
   step_normalize(matches("(index.num$)|(_year$)"))
 
-#bake(prep(recipe2), new_data = extract_nested_train_split(dat4)) %>% View()
+summary(prep(recipe2)) %>% View()
 # Model ---------------------------------------------------------------------------------------
 
 # PROPHET
@@ -64,6 +61,7 @@ mod_arima_xgb =
   tibble(
     expand_grid(
       learn_rate = c(0.2, 0.1, 0.3),
+      trees = 100,
       min_n = 2
     )
   ) %>% 
@@ -85,6 +83,7 @@ mod_prophet_xgb =
       prior_scale_changepoints = c(0.05, 0.1, 0.2, 0.5),
       prior_scale_seasonality = c(0.1, 0.5, 1, 5, 10),
       learn_rate = c(0.1, 0.2, 0.3),
+      trees = 100,
       min_n = 2
     )
   ) %>% 
@@ -144,6 +143,7 @@ wflw_tbats =
 
 # Fit -----------------------------------------------------------------------------------------
 set.seed(07635)
+
 # Set num of cores used to fitting
 num_cores = parallel::detectCores()
 
@@ -168,14 +168,14 @@ parallel_stop()
 # Validate ------------------------------------------------------------------------------------
 
 # All models
-dat5 %>% 
-  extract_nested_test_forecast() %>%
-  group_by(ts_id) %>%
-  plot_modeltime_forecast(
-    .facet_ncol  = 5,
-    .interactive = FALSE,
-    .conf_interval_show = FALSE
-  )
+# dat5 %>% 
+#   extract_nested_test_forecast() %>%
+#   group_by(ts_id) %>%
+#   plot_modeltime_forecast(
+#     .facet_ncol  = 5,
+#     .interactive = FALSE,
+#     .conf_interval_show = FALSE
+#   )
 
 # Model rank
 dat6 =
@@ -203,7 +203,7 @@ dat7 =
 dat7 %>%
   extract_nested_future_forecast() %>%
   group_by(ts_id) %>%
-  plot_modeltime_forecast(.interactive = FALSE,
+  plot_modeltime_forecast(.interactive = T,
                           .facet_ncol  = 5,
                           .conf_interval_show = T)
 

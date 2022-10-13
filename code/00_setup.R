@@ -31,6 +31,7 @@ pacman::p_load(tidyverse,
                feather,
                modeltime,
                modeltime.ensemble,
+               modeltime.resample,
                ggpubr,
                forecast)
 

@@ -14,8 +14,8 @@ dat2 = dat1 %>%
     # date of event
     migdate = migdate,
     # age of migrant when event happened
-    agegrp = case_when(age <= 21 ~ '00-21',
-                       age <= 39 ~ '22-39',
+    agegrp = case_when(age <= 20 ~ '00-20',
+                       age <= 39 ~ '21-39',
                        TRUE ~ '40-99'),
     # sending/receiving country 
     hostgrp = case_when(host == 'AUT' ~ 'AUT',
@@ -47,9 +47,6 @@ dat3 =
   # value becomes the log of averages daily events in a month + first difference
   mutate(freq = (freq0 + 1) / days_in_month(migdate),
          freqlog = log(freq),
-         lambda =  BoxCox.lambda(freq, method = 'loglik'),
-         freqbc = (freq ^ lambda - 1) / lambda,
-         freqdiff = freq - lag(freq),
          ts_id = cur_group_id()
          ) %>% 
   ungroup()
