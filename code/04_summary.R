@@ -5,7 +5,7 @@
 dat_base %>% 
   filter(type == 'Inflow') %>% 
   ggplot() +
-  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 5) +
   geom_ribbon(aes(x = migdate,
                   ymin = pred_lo,
                   ymax = pred_hi,
@@ -116,7 +116,7 @@ ggsave(paste0(dir_out, '\\plt_base_inflow_cumsum.png'), width = 40, height = 20,
 dat_base %>% 
   filter(type == 'Outflow') %>% 
   ggplot() +
-  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 5) +
   geom_ribbon(aes(x = migdate,
                   ymin = pred_lo,
                   ymax = pred_hi,

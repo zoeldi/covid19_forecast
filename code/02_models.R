@@ -5,6 +5,22 @@
 dat4 = readRDS(paste0(dir_data, '\\dat4.RDS'))
 
 
+dat3 %>%
+  filter(type == 'Inflow') %>% 
+  group_by(paste(type, agegrp, hostgrp, sep = '|')) %>%
+  plot_time_series(.date_var =  migdate, 
+                   .value = freqlog, 
+                   .interactive = F, 
+                   .facet_ncol = 5)
+
+dat3 %>%
+  filter(type == 'Outflow') %>% 
+  group_by(paste(type, agegrp, hostgrp, sep = '|')) %>%
+  plot_time_series(.date_var =  migdate, 
+                   .value = freqlog, 
+                   .interactive = F, 
+                   .facet_ncol = 5)
+
 # Recipe --------------------------------------------------------------------------------------
 
 recipe1 = 
@@ -203,7 +219,7 @@ dat7 =
 dat7 %>%
   extract_nested_future_forecast() %>%
   group_by(ts_id) %>%
-  plot_modeltime_forecast(.interactive = T,
+  plot_modeltime_forecast(.interactive = F,
                           .facet_ncol  = 5,
                           .conf_interval_show = T)
 

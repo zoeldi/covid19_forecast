@@ -14,8 +14,10 @@ dat2 = dat1 %>%
     # date of event
     migdate = migdate,
     # age of migrant when event happened
-    agegrp = case_when(age <= 20 ~ '00-20',
-                       age <= 39 ~ '21-39',
+    agegrp = case_when(age <= 17 ~ '00-17',
+                       age <= 24 ~ '18-24',
+                       age <= 30 ~ '25-30',
+                       age <= 40 ~ '31-40',
                        TRUE ~ '40-99'),
     # sending/receiving country 
     hostgrp = case_when(host == 'AUT' ~ 'AUT',
