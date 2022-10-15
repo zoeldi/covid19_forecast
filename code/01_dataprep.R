@@ -14,11 +14,10 @@ dat2 = dat1 %>%
     # date of event
     migdate = migdate,
     # age of migrant when event happened
-    agegrp = case_when(age <= 17 ~ '00-17',
-                       age <= 24 ~ '18-24',
-                       age <= 30 ~ '25-30',
-                       age <= 40 ~ '31-40',
-                       TRUE ~ '40-99'),
+    agegrp = case_when(age >= 17 & age <= 24 ~ '17-24',
+                       age <= 30 ~ '25-34',
+                       age <= 45 ~ '35-44',
+                       age <= 65 ~ '45-65'),
     # sending/receiving country 
     hostgrp = case_when(host == 'AUT' ~ 'AUT',
                         host == 'DEU' ~ 'DEU',
@@ -28,7 +27,8 @@ dat2 = dat1 %>%
                         TRUE ~ 'OTH'),
     # number of obs
     freq = 1
-    )
+    ) %>% 
+  filter(!is.na(agegrp))
 
 
 dat3 =

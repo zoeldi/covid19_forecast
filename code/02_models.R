@@ -41,6 +41,8 @@ recipe2 =
   step_normalize(matches("(index.num$)|(_year$)"))
 
 summary(prep(recipe2)) %>% View()
+prep(recipe2) %>% bake(new_data = extract_nested_train_split(dat4)) %>% View()
+
 # Model ---------------------------------------------------------------------------------------
 
 # PROPHET
@@ -92,7 +94,7 @@ mod_prophet_xgb =
       growth = c('linear'),
       changepoint_num = 25,
       changepoint_range = c(0.90),
-      seasonality_yearly = TRUE,
+      seasonality_yearly = c(TRUE, FALSE),
       seasonality_weekly = FALSE,
       seasonality_daily = FALSE,
       season = c('additive'),
@@ -169,10 +171,8 @@ parallel_start(num_cores)
 dat5 = 
   modeltime_nested_fit(nested_data = dat4,
                        model_list = 
-                         list(wflw_arima,
-                              wflw_tbats, 
-                              wflw_ets) %>%
-                         append(wflw_arima_xgb) %>% 
+                         list(wflw_tbats) %>%
+                         #append(wflw_arima_xgb) %>% 
                          append(wflw_prophet_xgb) %>% 
                          append(wflw_prophet),
                        control = control_nested_fit(allow_par = TRUE,
