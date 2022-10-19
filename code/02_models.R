@@ -1,7 +1,7 @@
 
 
 # Load ----------------------------------------------------------------------------------------
-
+dat3 = readRDS(paste0(dir_data, '\\dat3.RDS'))
 dat4 = readRDS(paste0(dir_data, '\\dat4.RDS'))
 
 
@@ -31,6 +31,7 @@ recipe2 =
   recipe(freqlog ~ .,
          data = extract_nested_train_split(dat4)) %>%
   step_timeseries_signature(migdate) %>%
+  step_mutate(outlier = as.factor(case_when(migdate == '2017-08-01' & type == 'Inflow' ~ 'Yes', TRUE ~ 'No'))) %>% 
   step_zv(all_predictors()) %>%
   step_rm(contains("iso"), 
           contains("second"), contains("minute"), contains("hour"),
@@ -51,7 +52,7 @@ mod_prophet =
     expand_grid(
       growth = c('linear'),
       changepoint_num = 25,
-      changepoint_range = c(0.90),
+      changepoint_range = c(0.9),
       seasonality_yearly = TRUE,
       seasonality_weekly = FALSE,
       seasonality_daily = FALSE,
@@ -94,14 +95,13 @@ mod_prophet_xgb =
       growth = c('linear'),
       changepoint_num = 25,
       changepoint_range = c(0.90),
-      seasonality_yearly = c(TRUE, FALSE),
+      seasonality_yearly = c(FALSE),
       seasonality_weekly = FALSE,
       seasonality_daily = FALSE,
       season = c('additive'),
       prior_scale_changepoints = c(0.05, 0.1, 0.2, 0.5),
-      prior_scale_seasonality = c(0.1, 0.5, 1, 5, 10),
       learn_rate = c(0.1, 0.2, 0.3),
-      trees = 100,
+      trees = 200,
       min_n = 2
     )
   ) %>% 
@@ -172,7 +172,6 @@ dat5 =
   modeltime_nested_fit(nested_data = dat4,
                        model_list = 
                          list(wflw_tbats) %>%
-                         #append(wflw_arima_xgb) %>% 
                          append(wflw_prophet_xgb) %>% 
                          append(wflw_prophet),
                        control = control_nested_fit(allow_par = TRUE,

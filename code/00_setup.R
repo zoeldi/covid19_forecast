@@ -4,14 +4,14 @@ Sys.setlocale("LC_TIME", "English")
 knitr::opts_chunk$set(fig.width=13, fig.height=6) 
 
 # colors 
-colorblind = list('grey' =   '#999999',
-                  'orange' = '#E69F00',
-                  'lblue' =  '#56B4E9',
-                  'green' =  '#009E73',
-                  'yellow' = '#F0E442',
-                  'dblue' =  '#0072B2',
-                  'red' =    '#D55E00',
-                  'pink' =   '#CC79A7')
+colorblind = list(
+  "blue"   = "#00798c",
+  "red"    = "#d1495b",
+  "yellow" = "#edae49",
+  "green"  = "#66a182",
+  "navy"   = "#2e4057",
+  "grey"   = "#8d96a3"
+)
 
 # path
 dir_root = getwd()
@@ -33,5 +33,6 @@ pacman::p_load(tidyverse,
                modeltime.ensemble,
                modeltime.resample,
                ggpubr,
-               forecast)
+               forecast,
+               ggthemes)
 

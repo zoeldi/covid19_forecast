@@ -26,6 +26,11 @@ pre code {
 }
 ```
 
+```{r setup, echo=FALSE}
+# Setup script
+source(paste0(getwd(), '\\code\\00_setup.R'))
+```
+
 # Introduction
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi at imperdiet tortor, vitae tincidunt felis. Fusce porta mollis suscipit. Aenean sit amet suscipit quam. Nulla a cursus magna. Nulla et venenatis sapien. Nulla pharetra lorem et dui maximus condimentum. Nam non purus vitae tellus fermentum auctor at vel enim. Nulla viverra eleifend sem, ac dapibus orci pretium non. Maecenas eu cursus eros, ut sagittis dui. Cras lobortis lorem vitae purus tristique laoreet. Morbi volutpat, elit in consequat hendrerit, lectus velit tempus ipsum, laoreet tempus dui risus id quam. Phasellus ex purus, suscipit ut quam sit amet, cursus aliquam mi.

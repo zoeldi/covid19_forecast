@@ -1,4 +1,28 @@
 
+# Load ----------------------------------------------------------------------------------------
+
+dat_base = readRDS(paste0(dir_data, '\\dat_base.RDS'))
+dat_recon = readRDS(paste0(dir_data, '\\dat_recon.RDS'))
+
+dat_base = 
+  dat_base %>% 
+  mutate(mod_family = case_when(.model_desc == 'ACTUAL' ~ 'Actual',
+                                .model_desc == 'PROPHET' ~ 'Prophet',
+                                .model_desc == 'PROPHET W XGBOOST ERRORS' ~ 'Prophet XGB',
+                                .model_desc == 'TBATS   ' ~ 'TBATS'),
+         actpred = case_when(.key == 'actual' ~ 'Actual',
+                             .key == 'prediction' ~ 'Predicted'))
+
+dat_recon = 
+  dat_recon %>% 
+  mutate(actpred = case_when(.key == 'actual' ~ 'Actual',
+                             .key == 'prediction' ~ 'Predicted'))
+
+
+plotlist = list()
+
+
+
 # Base-level inflow by model ------------------------------------------------------------------
 
 ## Absolute -----------
@@ -6,32 +30,35 @@
    dat_base %>% 
    filter(type == 'Inflow') %>% 
    ggplot() +
-   facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 4) +
+   facet_wrap(paste(hostgrp, agegrp, sep = ' | ') ~ ., scales = 'free', ncol = 4) +
    geom_ribbon(aes(x = migdate,
                    ymin = pred_lo,
                    ymax = pred_hi,
-                   fill = .model_desc),
+                   fill = mod_family),
                alpha = 0.2) +
    geom_line(aes(x = migdate,
                  y = pred_mi,
-                 color = .model_desc), size = 0.8) +
+                 color = mod_family)) +
    geom_line(aes(x = migdate,
-                 y = actual), size = 0.8) +
-   # scale_color_manual(values = c('black',
-   #                               colorblind$green,
-   #                               colorblind$lblue,
-   #                               colorblind$red),
-   #                    name = 'Model family') +
-   # scale_fill_manual(values = c('black',
-   #                              colorblind$green,
-   #                              colorblind$lblue,
-   #                              colorblind$red),
-   #                   name = 'Model family') +
+                 y = actual)) +
+   scale_color_manual(values = c('black',
+                                 colorblind$blue,
+                                 colorblind$red,
+                                 colorblind$yellow),
+                      name = 'Model family') +
+   scale_fill_manual(values = c('black',
+                                colorblind$blue,
+                                colorblind$red,
+                                colorblind$yellow),
+                     name = 'Model family') +
    theme_bw() + 
    theme(legend.position = 'bottom',
-         axis.title.x = element_blank()) +
+         axis.title.x = element_blank(),
+         panel.grid.minor = element_blank(),
+         text = element_text(size = 9)) +
    ylab('Number of Hngarian immigrants')
 )
+
 
 
 ## Percentage -----------
@@ -44,69 +71,76 @@
          pred_hi_perc = (actual / pred_hi) * 100,
          issignificant = case_when(pred_hi_perc <= 100 & pred_lo_perc >= 100 ~ 'Non-Significant', TRUE ~ 'Significant')) %>% 
   ggplot() +
-  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  facet_wrap(paste(hostgrp, agegrp, sep = ' | ') ~ ., scales = 'free', ncol = 4) +
   geom_hline(yintercept = 100,
              linetype = '31') +
   geom_ribbon(aes(x = migdate,
                   ymin = pred_hi_perc,
                   ymax = pred_lo_perc,
-                  fill = .model_desc),
+                  fill = mod_family),
               alpha = 0.2) +
   geom_line(aes(x = migdate,
                 y = pred_mi_perc,
-                color = .model_desc)) +
+                color = mod_family)) +
   geom_point(aes(x = migdate,
                  y = pred_mi_perc,
-                 color = .model_desc),
-             size = 2) +
-  # scale_color_manual(values = c(colorblind$green,
-  #                               colorblind$lblue,
-  #                               colorblind$red),
-  #                    name = 'Model family') +
-  # scale_fill_manual(values = c(colorblind$green,
-  #                              colorblind$lblue,
-  #                              colorblind$red),
-  #                   name = 'Model family') +
-  # scale_shape_manual(values = c(1, 21)) +
+                 color = mod_family),
+             size = 1) +
+   scale_color_manual(values = c(colorblind$blue,
+                                 colorblind$red,
+                                 colorblind$yellow),
+                      name = 'Model family') +
+   scale_fill_manual(values = c(colorblind$blue,
+                                colorblind$red,
+                                colorblind$yellow),
+                     name = 'Model family') +
   theme_bw() + 
   theme(legend.position = 'bottom',
-        axis.title.x = element_blank()) +
+        axis.title.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
   ylab('Deviation of actual immigration from predicted (%)')
 )
 
 
 
+
 ## Cumsum -----------
-plt_base_inflow_cumsum = 
-  dat_base %>% 
-  filter(type == 'Inflow' & migdate >= ymd('2020-01-01')) %>% 
-  ggplot() +
-  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
-  geom_hline(yintercept = 100,
-             linetype = '31') +
-  geom_ribbon(aes(x = migdate,
-                  ymin = actual_cum / pred_lo_cum * 100,
-                  ymax = actual_cum / pred_hi_cum * 100,
-                  fill = .model_desc),
-              alpha = 0.2) +
-  geom_line(aes(x = migdate,
-                y = actual_cum / pred_mi_cum * 100,
-                color = .model_desc)) +
-  geom_point(aes(x = migdate,
+(plt_base_inflow_cumsum = 
+   dat_base %>% 
+   filter(type == 'Inflow' & migdate >= ymd('2020-01-01')) %>% 
+   ggplot() +
+   facet_wrap(paste(hostgrp, agegrp, sep = ' | ') ~ ., scales = 'free', ncol = 4) +
+   geom_hline(yintercept = 100,
+              linetype = '31') +
+   geom_ribbon(aes(x = migdate,
+                   ymin = actual_cum / pred_lo_cum * 100,
+                   ymax = actual_cum / pred_hi_cum * 100,
+                   fill = mod_family),
+               alpha = 0.2) +
+   geom_line(aes(x = migdate,
                  y = actual_cum / pred_mi_cum * 100,
-                 color = .model_desc)) +
-  # scale_color_manual(values = c(colorblind$green,
-  #                               colorblind$lblue,
-  #                               colorblind$red),
-  #                    name = 'Model family') +
-  # scale_fill_manual(values = c(colorblind$green,
-  #                              colorblind$lblue,
-  #                              colorblind$red),
-  #                   name = 'Model family') +
-  theme_bw() + 
-  theme(legend.position = 'bottom',
-        axis.title.x = element_blank()) +
-  ylab('Cumsum')
+                 color = mod_family)) +
+   geom_point(aes(x = migdate,
+                  y = actual_cum / pred_mi_cum * 100,
+                  color = mod_family),
+              size = 1) +
+   scale_color_manual(values = c(colorblind$blue,
+                                 colorblind$red,
+                                 colorblind$yellow),
+                      name = 'Model family') +
+   scale_fill_manual(values = c(colorblind$blue,
+                                colorblind$red,
+                                colorblind$yellow),
+                     name = 'Model family') +
+   theme_bw() + 
+   theme(legend.position = 'bottom',
+         axis.title.x = element_blank(),
+         panel.grid.minor = element_blank(),
+         text = element_text(size = 9)) +
+   ylab('Deviation of actual sum of immigrants from predicted (%)')
+)
+
 
 
 
@@ -118,37 +152,39 @@ plt_base_inflow_cumsum =
    dat_base %>% 
    filter(type == 'Outflow') %>% 
    ggplot() +
-   facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 4) +
+   facet_wrap(paste(hostgrp, agegrp, sep = ' | ') ~ ., scales = 'free', ncol = 4) +
    geom_ribbon(aes(x = migdate,
                    ymin = pred_lo,
                    ymax = pred_hi,
-                   fill = .model_desc),
+                   fill = mod_family),
                alpha = 0.2) +
    geom_line(aes(x = migdate,
                  y = pred_mi,
-                 color = .model_desc), size = 0.8) +
+                 color = mod_family)) +
    geom_line(aes(x = migdate,
-                 y = actual), size = 0.8) +
-   # scale_color_manual(values = c('black',
-   #                               colorblind$green,
-   #                               colorblind$lblue,
-   #                               colorblind$red),
-   #                    name = 'Model family') +
-   # scale_fill_manual(values = c('black',
-   #                              colorblind$green,
-   #                              colorblind$lblue,
-   #                              colorblind$red),
-   #                   name = 'Model family') +
+                 y = actual)) +
+   scale_color_manual(values = c('black',
+                                 colorblind$blue,
+                                 colorblind$red,
+                                 colorblind$yellow),
+                      name = 'Model family') +
+   scale_fill_manual(values = c('black',
+                                colorblind$blue,
+                                colorblind$red,
+                                colorblind$yellow),
+                     name = 'Model family') +
    theme_bw() + 
    theme(legend.position = 'bottom',
-         axis.title.x = element_blank()) +
+         axis.title.x = element_blank(),
+         panel.grid.minor = element_blank(),
+         text = element_text(size = 9)) +
    ylab('Number of Hngarian emigrants')
 )
 
 
 
 ## Percentage -----------
-plt_base_outflow_perc = 
+(plt_base_outflow_perc = 
   dat_base %>% 
   filter(type == 'Outflow' & migdate >= ymd('2020-01-01')) %>% 
   rowwise() %>% 
@@ -157,72 +193,73 @@ plt_base_outflow_perc =
          pred_hi_perc = (actual / pred_hi) * 100,
          issignificant = case_when(pred_hi_perc <= 100 & pred_lo_perc >= 100 ~ 'Non-Significant', TRUE ~ 'Significant')) %>% 
   ggplot() +
-  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  facet_wrap(paste(hostgrp, agegrp, sep = ' | ') ~ ., scales = 'free', ncol = 4) +
   geom_hline(yintercept = 100,
              linetype = '31') +
   geom_ribbon(aes(x = migdate,
                   ymin = pred_hi_perc,
                   ymax = pred_lo_perc,
-                  fill = .model_desc),
+                  fill = mod_family),
               alpha = 0.2) +
   geom_line(aes(x = migdate,
                 y = pred_mi_perc,
-                color = .model_desc)) +
+                color = mod_family)) +
   geom_point(aes(x = migdate,
                  y = pred_mi_perc,
-                 color = .model_desc),
-             size = 2) +
-  # scale_color_manual(values = c(colorblind$green,
-  #                               colorblind$lblue,
-  #                               colorblind$red),
-  #                    name = 'Model family') +
-  # scale_fill_manual(values = c(colorblind$green,
-  #                              colorblind$lblue,
-  #                              colorblind$red),
-  #                   name = 'Model family') +
-  # scale_shape_manual(values = c(1, 21)) +
+                 color = mod_family),
+             size = 1) +
+  scale_color_manual(values = c(colorblind$blue,
+                                colorblind$red,
+                                colorblind$yellow),
+                     name = 'Model family') +
+  scale_fill_manual(values = c(colorblind$blue,
+                               colorblind$red,
+                               colorblind$yellow),
+                    name = 'Model family') +
   theme_bw() + 
   theme(legend.position = 'bottom',
-        axis.title.x = element_blank()) +
-  ylab('Deviation of actual emigration from predicted (%)')
+        axis.title.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Deviation of actual emigration from predicted (%)'))
 
 
 
 
 ## Cumsum -----------
-plt_base_outflow_cumsum = 
+(plt_base_outflow_cumsum = 
   dat_base %>% 
   filter(type == 'Outflow' & migdate >= ymd('2020-01-01')) %>% 
   ggplot() +
-  facet_wrap(paste(hostgrp, agegrp, ts_id, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  facet_wrap(paste(hostgrp, agegrp, sep = ' | ') ~ ., scales = 'free', ncol = 4) +
   geom_hline(yintercept = 100,
              linetype = '31') +
   geom_ribbon(aes(x = migdate,
                   ymin = actual_cum / pred_hi_cum * 100,
                   ymax = actual_cum / pred_lo_cum * 100,
-                  fill = .model_desc),
+                  fill = mod_family),
               alpha = 0.2) +
   geom_line(aes(x = migdate,
                 y = actual_cum / pred_mi_cum * 100,
-                color = .model_desc)) +
+                color = mod_family)) +
   geom_point(aes(x = migdate,
                  y = actual_cum / pred_mi_cum * 100,
-                 color = .model_desc),
-             size = 2) +
-  # scale_color_manual(values = c(colorblind$green,
-  #                               colorblind$lblue,
-  #                               colorblind$red),
-  #                    name = 'Model family') +
-  # scale_fill_manual(values = c(colorblind$green,
-  #                              colorblind$lblue,
-  #                              colorblind$red),
-  #                   name = 'Model family') +
-  # scale_shape_manual(values = c(1, 21)) +
+                 color = mod_family),
+             size = 1) +
+   scale_color_manual(values = c(colorblind$blue,
+                                 colorblind$red,
+                                 colorblind$yellow),
+                      name = 'Model family') +
+   scale_fill_manual(values = c(colorblind$blue,
+                                colorblind$red,
+                                colorblind$yellow),
+                     name = 'Model family') +
   theme_bw() + 
   theme(legend.position = 'bottom',
-        axis.title.x = element_blank()) +
-  ylab('Cumsum')
-
+        axis.title.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Deviation of actual sum of emigrants from predicted (%)'))
 
 
 
@@ -230,7 +267,7 @@ plt_base_outflow_cumsum =
 # Aggregated by age ---------------------------------------------------------------------------
 
 ## Absolute ---------------------
-plt_age_abs = 
+(plt_age_abs = 
   dat_recon %>% 
   filter(agegrp != 'Aggregated' & hostgrp == 'Aggregated') %>% 
   ggplot() +
@@ -238,37 +275,37 @@ plt_age_abs =
   geom_ribbon(aes(x = migdate,
                   ymin = pred_lo,
                   ymax = pred_hi,
-                  fill = .key),
+                  fill = actpred),
               alpha = 0.2) +
   geom_line(aes(x = migdate, 
                 y = pred_mi,
-                color = .key)) +
+                color = actpred)) +
   geom_line(aes(x = migdate,
                 y = actual)) +
   scale_color_manual(values = c('black',
-                                colorblind$lblue),
-                     name = '') +
+                                colorblind$blue)) +
   scale_fill_manual(values = c('black',
-                               colorblind$lblue),
-                    name = '') +
+                               colorblind$blue)) +
   theme_bw() +
   theme(legend.position = 'bottom',
         axis.title.x = element_blank(),
-        legend.title = element_blank()) +
-  ylab('Number of Hungarian migrants')
+        legend.title = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Number of Hungarian migrants'))
 
 
 
 
 ## Percentage -----------
-plt_age_perc = 
+(plt_age_perc = 
   dat_recon %>% 
   filter(agegrp != 'Aggregated' & hostgrp == 'Aggregated' & migdate >= ymd('2020-01-01')) %>% 
   mutate(pred_lo_perc = (actual / pred_lo) * 100,
          pred_mi_perc = (actual / pred_mi) * 100,
          pred_hi_perc = (actual / pred_hi) * 100) %>% 
   ggplot() +
-  facet_wrap(paste(type, agegrp, sep = ' | ') ~ ., scales = 'free', ncol = 3) +
+  facet_wrap(paste(agegrp, type, sep = ' | ') ~ ., scales = 'free', ncol = 2) +
   geom_hline(yintercept = 100,
              linetype = '31') +
   geom_ribbon(aes(x = migdate,
@@ -282,22 +319,23 @@ plt_age_perc =
   geom_point(aes(x = migdate,
                  y = pred_mi_perc,
                  color = type),
-             size = 2) +
-  scale_color_manual(values = c(colorblind$lblue,
+             size = 1) +
+  scale_color_manual(values = c(colorblind$blue,
                                 colorblind$red)) +
-  scale_fill_manual(values = c(colorblind$lblue,
+  scale_fill_manual(values = c(colorblind$blue,
                                colorblind$red)) +
-  # scale_shape_manual(values = c(1, 21)) +
   theme_bw() + 
   theme(legend.position = 'none',
-        axis.title.x = element_blank()) +
-  ylab('Deviation of actual migration from predicted (%)')
+        axis.title.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Deviation of actual migration from predicted (%)'))
 
 
 
 
 ## Cumsum -----------
-plt_age_cumsum = 
+(plt_age_cumsum = 
   dat_recon %>% 
   filter(agegrp != 'Aggregated' & hostgrp == 'Aggregated' & migdate >= ymd('2020-01-01')) %>% 
   ggplot() +
@@ -315,16 +353,17 @@ plt_age_cumsum =
   geom_point(aes(x = migdate,
                  y = actual_cum / pred_mi_cum * 100,
                  color = type),
-             size = 2) +
-  scale_color_manual(values = c(colorblind$lblue,
+             size = 1) +
+  scale_color_manual(values = c(colorblind$blue,
                                 colorblind$red)) +
-  scale_fill_manual(values = c(colorblind$lblue,
+  scale_fill_manual(values = c(colorblind$blue,
                                colorblind$red)) +
-  # scale_shape_manual(values = c(1, 21)) +
   theme_bw() + 
   theme(legend.position = 'none',
-        axis.title.x = element_blank()) +
-  ylab('Cumsum')
+        axis.title.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Deviation of actual sum of migrants from predicted (%)'))
 
 
 
@@ -333,7 +372,7 @@ plt_age_cumsum =
 # Aggregated by host -------------------------------------------------------------------------
 
 ## Absolute ---------------------
-plt_host_abs = 
+(plt_host_abs = 
   dat_recon %>% 
   filter(agegrp == 'Aggregated' & hostgrp != 'Aggregated') %>% 
   ggplot() +
@@ -341,30 +380,30 @@ plt_host_abs =
   geom_ribbon(aes(x = migdate,
                   ymin = pred_lo,
                   ymax = pred_hi,
-                  fill = .key),
+                  fill = actpred),
               alpha = 0.2) +
   geom_line(aes(x = migdate, 
                 y = pred_mi,
-                color = .key), size = 1) +
+                color = actpred)) +
   geom_line(aes(x = migdate,
-                y = actual), size = 1) +
+                y = actual)) +
   scale_color_manual(values = c('black',
-                                colorblind$lblue),
-                     name = '') +
+                                colorblind$blue)) +
   scale_fill_manual(values = c('black',
-                               colorblind$lblue),
-                    name = '') +
+                               colorblind$blue)) +
   theme_bw() +
   theme(legend.position = 'bottom',
         axis.title.x = element_blank(),
-        legend.title = element_blank()) +
-  ylab('Number of Hungarian migrants')
+        legend.title = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Number of Hungarian migrants'))
 
 
 
 
 ## Percentage -----------
-plt_host_perc = 
+(plt_host_perc = 
   dat_recon %>% 
   filter(agegrp == 'Aggregated' & hostgrp != 'Aggregated' & migdate >= ymd('2020-01-01')) %>% 
   mutate(pred_lo_perc = (actual / pred_lo) * 100,
@@ -385,22 +424,23 @@ plt_host_perc =
   geom_point(aes(x = migdate,
                  y = pred_mi_perc,
                  color = type),
-             size = 2) +
-  scale_color_manual(values = c(colorblind$lblue,
+             size = 1) +
+  scale_color_manual(values = c(colorblind$blue,
                                 colorblind$red)) +
-  scale_fill_manual(values = c(colorblind$lblue,
+  scale_fill_manual(values = c(colorblind$blue,
                                colorblind$red)) +
-  # scale_shape_manual(values = c(1, 21)) +
   theme_bw() + 
   theme(legend.position = 'none',
-        axis.title.x = element_blank()) +
-  ylab('Deviation of actual migration from predicted (%)')
+        axis.title.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Deviation of actual migration from predicted (%)'))
 
 
 
 
 ## Cumsum -----------
-plt_host_cumsum = 
+(plt_host_cumsum = 
   dat_recon %>% 
   filter(agegrp == 'Aggregated' & hostgrp != 'Aggregated' & migdate >= ymd('2020-01-01')) %>% 
   ggplot() +
@@ -418,16 +458,17 @@ plt_host_cumsum =
   geom_point(aes(x = migdate,
                  y = actual_cum / pred_mi_cum * 100,
                  color = type),
-             size = 2) +
-  scale_color_manual(values = c(colorblind$lblue,
+             size = 1) +
+  scale_color_manual(values = c(colorblind$blue,
                                 colorblind$red)) +
-  scale_fill_manual(values = c(colorblind$lblue,
+  scale_fill_manual(values = c(colorblind$blue,
                                colorblind$red)) +
-  # scale_shape_manual(values = c(1, 21)) +
   theme_bw() + 
   theme(legend.position = 'none',
-        axis.title.x = element_blank()) +
-  ylab('Cumsum')
+        axis.title.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Deviation of actual sum of migrants from predicted (%)'))
 
 
 
@@ -436,7 +477,7 @@ plt_host_cumsum =
 # Aggregated by type -------------------------------------------------------------------------
 
 ## Absolute ---------------------
-plt_aggregated_abs = 
+(plt_aggregated_abs = 
   dat_recon %>% 
   filter(agegrp == 'Aggregated' & hostgrp == 'Aggregated') %>% 
   ggplot() +
@@ -444,30 +485,29 @@ plt_aggregated_abs =
   geom_ribbon(aes(x = migdate,
                   ymin = pred_lo,
                   ymax = pred_hi,
-                  fill = .key),
+                  fill = actpred),
               alpha = 0.2) +
   geom_line(aes(x = migdate, 
                 y = pred_mi,
-                color = .key), size = 1) +
+                color = actpred)) +
   geom_line(aes(x = migdate,
-                y = actual), size = 1) +
+                y = actual)) +
   scale_color_manual(values = c('black',
-                                colorblind$lblue),
-                     name = '') +
+                                colorblind$blue)) +
   scale_fill_manual(values = c('black',
-                               colorblind$lblue),
-                    name = '') +
+                               colorblind$blue)) +
   theme_bw() +
   theme(legend.position = 'bottom',
         axis.title.x = element_blank(),
-        legend.title = element_blank()) +
-  ylab('Number of Hungarian migrants')
-
+        legend.title = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Number of Hungarian migrants'))
 
 
 
 ## Percentage -----------
-plt_aggregated_perc = 
+(plt_aggregated_perc = 
   dat_recon %>% 
   filter(agegrp == 'Aggregated' & hostgrp == 'Aggregated' & migdate >= ymd('2020-01-01')) %>% 
   mutate(pred_lo_perc = (actual / pred_lo) * 100,
@@ -488,22 +528,23 @@ plt_aggregated_perc =
   geom_point(aes(x = migdate,
                  y = pred_mi_perc,
                  color = type),
-             size = 2) +
-  scale_color_manual(values = c(colorblind$lblue,
+             size = 1) +
+  scale_color_manual(values = c(colorblind$blue,
                                 colorblind$red)) +
-  scale_fill_manual(values = c(colorblind$lblue,
+  scale_fill_manual(values = c(colorblind$blue,
                                colorblind$red)) +
-  # scale_shape_manual(values = c(1, 21)) +
   theme_bw() + 
   theme(legend.position = 'none',
-        axis.title.x = element_blank()) +
-  ylab('Deviation of actual migration from predicted (%)')
+        axis.title.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Deviation of actual migration from predicted (%)'))
 
 
 
 
 ## Cumsum -----------
-plt_aggregated_cumsum = 
+(plt_aggregated_cumsum = 
   dat_recon %>% 
   filter(agegrp == 'Aggregated' & hostgrp == 'Aggregated' & migdate >= ymd('2020-01-01')) %>% 
   ggplot() +
@@ -521,15 +562,28 @@ plt_aggregated_cumsum =
   geom_point(aes(x = migdate,
                  y = actual_cum / pred_mi_cum * 100,
                  color = type),
-             size = 2) +
-  scale_color_manual(values = c(colorblind$lblue,
+             size = 1) +
+  scale_color_manual(values = c(colorblind$blue,
                                 colorblind$red)) +
-  scale_fill_manual(values = c(colorblind$lblue,
+  scale_fill_manual(values = c(colorblind$blue,
                                colorblind$red)) +
-  # scale_shape_manual(values = c(1, 21)) +
   theme_bw() + 
   theme(legend.position = 'none',
-        axis.title.x = element_blank()) +
-  ylab('Cumsum')
+        axis.title.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 9)) +
+  ylab('Deviation of actual sum of migrants from predicted (%)'))
 
 
+# Save ----------------------------------------------------------------------------------------
+
+for(i in ls()[substr(ls(), 1, 3) == 'plt']) {
+  plotlist[[i]] = eval(as.name(i))
+}
+
+saveRDS(plotlist, paste0(dir_data, '\\plotlist.RDS'))
+
+for(i in ls()[substr(ls(), 1, 3) == 'plt']) {
+  ggsave(plot = eval(as.name(i)),
+         filename = paste0(dir_out, '\\', i, '.jpeg'), width = 12)
+}
